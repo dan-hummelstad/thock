@@ -1,7 +1,6 @@
 import AppKit
 import ApplicationServices
 import CoreGraphics
-import CoreServices   // ProcessSerialNumber for SkyLight focus
 import QuartzCore     // CACurrentMediaTime for the Space-switch gate
 
 // Private API: maps an AXUIElement window to its CGWindowID. Used by AltTab and
@@ -48,98 +47,12 @@ private enum SkyLight {
         return (cf as? [UInt32]) ?? (cf as? [NSNumber])?.map { $0.uint32Value } ?? []
     }
 
-    typealias SetFrontFn = @convention(c) (UnsafeMutablePointer<ProcessSerialNumber>, CGWindowID, UInt32) -> Int32
-    typealias PostEventFn = @convention(c) (UnsafeMutablePointer<ProcessSerialNumber>, UnsafePointer<UInt8>) -> Int32
-    typealias OwnerFn = @convention(c) (Int32, CGWindowID, UnsafeMutablePointer<Int32>) -> Int32
-    typealias ConnPSNFn = @convention(c) (Int32, UnsafeMutablePointer<ProcessSerialNumber>) -> Int32
-    static let setFrontProcess = sym("_SLPSSetFrontProcessWithOptions", SetFrontFn.self)
-    static let postEvent = sym("SLPSPostEventRecordTo", PostEventFn.self)
-    static let getWindowOwner = sym("SLSGetWindowOwner", OwnerFn.self)
-    static let getConnectionPSN = sym("SLSGetConnectionPSN", ConnPSNFn.self)
-    typealias SpacesForWinsFn = @convention(c) (Int32, UInt32, CFArray) -> Unmanaged<CFArray>?
-    typealias SetSpaceFn = @convention(c) (Int32, CFString, UInt64) -> Int32
-    static let copySpacesForWindows = sym("SLSCopySpacesForWindows", SpacesForWinsFn.self)
-    static let setCurrentSpace = sym("SLSManagedDisplaySetCurrentSpace", SetSpaceFn.self)
-
-    /// Switch the window's display to the Space that holds `wid` (no-op if already
-    /// visible). This is the ONLY mechanism that follows an off-Space window on macOS 27:
-    /// AX can't see off-Space windows so there's no element to kAXRaise, and SetFront only
-    /// claims the app — verified, it does not move the Space on its own. Call it AFTER
-    /// SetFront so the target app already owns the menu bar and the Space appears clean.
-    static func switchToVisible(_ cid: Int32, _ wid: CGWindowID) {
-        guard let copySpacesForWindows, let setCurrentSpace, let copyManagedDisplaySpaces else { return }
-        guard let ws = copySpacesForWindows(cid, 0x7, [NSNumber(value: wid)] as CFArray)?
-                .takeRetainedValue() as? [NSNumber],
-              let target = ws.first?.uint64Value,
-              let displays = copyManagedDisplaySpaces(cid)?.takeRetainedValue() as? [[String: Any]] else { return }
-        for d in displays {
-            guard let spaces = d["Spaces"] as? [[String: Any]],
-                  spaces.contains(where: { ($0["id64"] as? UInt64) == target }) else { continue }
-            if ((d["Current Space"] as? [String: Any])?["id64"] as? UInt64) == target { return }  // already visible
-            if let displayId = d["Display Identifier"] as? String {
-                let r = setCurrentSpace(cid, displayId as CFString, target)
-                NSLog("THOCK switchToVisible target=\(target) display=\(displayId) ret=\(r)")
-            }
-            return
-        }
-    }
-
-    // DIAG (temporary): report a window's Space id(s) vs the currently-visible Space id(s).
-    static func diagSpace(_ wid: CGWindowID) -> String {
-        guard let mainConnectionID, let copyManagedDisplaySpaces else { return "no-syms" }
-        let cid = mainConnectionID()
-        var winSpace = "?"
-        if let f = copySpacesForWindows,
-           let a = f(cid, 0x7, [NSNumber(value: wid)] as CFArray)?.takeRetainedValue() as? [NSNumber] {
-            winSpace = a.map(\.stringValue).joined(separator: ",")
-        }
-        var cur = "?"
-        if let ds = copyManagedDisplaySpaces(cid)?.takeRetainedValue() as? [[String: Any]] {
-            cur = ds.compactMap { ($0["Current Space"] as? [String: Any])?["id64"] as? UInt64 }
-                    .map(String.init).joined(separator: ",")
-        }
-        return "winSpace=[\(winSpace)] visible=[\(cur)]"
-    }
-
-    /// Focus a specific window by id — even on another Space — the way AltTab does: make
-    /// its process frontmost *anchored to this window*, which switches to the window's
-    /// Space WITHOUT moving the window, then post the two SkyLight event records that make
-    /// it the key window. Returns false if the private symbols didn't resolve, so the
-    /// caller can fall back to app activation.
-    ///
-    /// The PSN comes from the window's own connection (SLSGetWindowOwner →
-    /// SLSGetConnectionPSN), NOT GetProcessForPID — that Carbon symbol does not resolve at
-    /// runtime here (verified), so the old code failed this call every time and fell back
-    /// to NSRunningApplication.activate(), which drags the window to the current Space.
-    /// ponytail: the 0xf8-byte event layout is AltTab's reverse-engineered magic; it can
-    /// break on a major macOS release. If off-Space focus regresses after an update, here.
-    static func focus(wid: CGWindowID) -> Bool {
-        guard let mainConnectionID, let setFront = setFrontProcess, let post = postEvent,
-              let getWindowOwner, let getConnectionPSN else { return false }
-        let cid = mainConnectionID()
-        var ownerCid: Int32 = 0
-        let oRet = getWindowOwner(cid, wid, &ownerCid)
-        var psn = ProcessSerialNumber()
-        let pRet = getConnectionPSN(ownerCid, &psn)
-        NSLog("THOCK focus wid=\(wid) ownerRet=\(oRet) ownerCid=\(ownerCid) psnRet=\(pRet) psn=(\(psn.highLongOfPSN),\(psn.lowLongOfPSN)) \(diagSpace(wid))")
-        guard oRet == 0, pRet == 0 else { return false }
-        // Claim the front process anchored to the window and make it key. Precise for
-        // AX-resolvable (current-Space) windows; the caller adds kAXRaise. Off-Space
-        // windows take a different route (see raise) since they have no AX element.
-        let sRet = setFront(&psn, wid, 0x200)       // 0x200 = user-generated
-        NSLog("THOCK focus setFrontRet=\(sRet)")
-        var bytes = [UInt8](repeating: 0, count: 0xf8)
-        bytes[0x04] = 0xf8
-        bytes[0x3a] = 0x10
-        var w = wid
-        withUnsafeBytes(of: &w) { for i in 0..<4 { bytes[0x3c + i] = $0[i] } }
-        for i in 0x20..<0x30 { bytes[i] = 0xff }
-        bytes[0x08] = 0x01
-        _ = bytes.withUnsafeBufferPointer { post(&psn, $0.baseAddress!) }
-        bytes[0x08] = 0x02
-        _ = bytes.withUnsafeBufferPointer { post(&psn, $0.baseAddress!) }
-        return true
-    }
+    // Deleted: _SLPSSetFrontProcessWithOptions / SLPSPostEventRecordTo / SLSGetWindowOwner /
+    // SLSGetConnectionPSN (AltTab-style window-server focus, incl. the 0xf8 event records) and
+    // SLSCopySpacesForWindows / SLSManagedDisplaySetCurrentSpace. The focus route destroyed
+    // Microsoft Teams' window on every switch and bought nothing activate() + kAXRaise doesn't;
+    // the Space-switching pair was already unreachable. `git show b5aacf9` has them if a case
+    // ever turns up that plain AX can't reach. Enumeration below is all the private API left.
 }
 
 struct WindowInfo {
@@ -153,21 +66,115 @@ struct WindowInfo {
 }
 
 final class WindowManager {
-    private var mru: [CGWindowID] = []   // most-recent first
+    private var mru: [CGWindowID] = []   // most-recent first — a true global MRU across all Spaces
+    private var observers: [pid_t: AXObserver] = [:]
 
     var mruOrder: [CGWindowID] { mru }
 
     func bump(_ id: CGWindowID) {
         mru.removeAll { $0 == id }
         mru.insert(id, at: 0)
+        // The AX create notification fires for helper windows too (Chromium's status bubble
+        // makes a fresh one per link hover), so dead ids pile up in here forever otherwise.
+        // ponytail: 500 is far past any real window count; trimming the tail only costs order
+        // for windows that haven't been touched in 500 focus events.
+        if mru.count > 500 { mru.removeLast(mru.count - 500) }
     }
 
-    /// All standard app windows across every Space, sorted MRU-first.
-    func windows() -> [WindowInfo] {
-        var result = Self.merge(axWindows(), allSpaceWindows())
+    /// Sort ids MRU-first; windows never focused since launch fall to the bottom, keeping
+    /// input order among themselves. Stable within a tier.
+    static func ordered(_ ids: [CGWindowID], mru: [CGWindowID]) -> [CGWindowID] {
         let rank = Dictionary(uniqueKeysWithValues: mru.enumerated().map { ($1, $0) })
-        result.sort { (rank[$0.id] ?? .max) < (rank[$1.id] ?? .max) }
-        return result
+        return ids.enumerated().sorted { (rank[$0.1] ?? .max, $0.0) < (rank[$1.1] ?? .max, $1.0) }.map { $0.1 }
+    }
+
+    /// All standard app windows across every Space, sorted by the global MRU.
+    func windows() -> [WindowInfo] {
+        let merged = Self.merge(axWindows(), allSpaceWindows())
+        let order = Self.ordered(merged.map(\.id), mru: mru)
+        let pos = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($1, $0) })
+        return merged.sorted { pos[$0.id]! < pos[$1.id]! }
+    }
+
+    // MARK: - MRU tracking (AltTab-style: focus + creation events keep a true global MRU)
+
+    /// Seed the MRU from the current Space's z-order, then watch every app for window focus
+    /// and creation. This is what makes same-Space window switches and freshly-opened windows
+    /// bump — the NSWorkspace app-activation bump only fires when you switch *apps*. Needs
+    /// Accessibility; degrades to the seed-only order without it.
+    func startTracking() {
+        for id in Self.onScreenZOrder().reversed() { bump(id) }   // frontmost ends up at mru[0]
+        for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular {
+            addObserver(for: app.processIdentifier)
+        }
+        let nc = NSWorkspace.shared.notificationCenter
+        nc.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] n in
+            if let a = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication { self?.addObserver(for: a.processIdentifier) }
+        }
+        nc.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] n in
+            if let a = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication { self?.removeObserver(for: a.processIdentifier) }
+        }
+    }
+
+    /// AX event → bump. `element` is the created window for creation events and the app for
+    /// focus-changed events, so try it directly, then fall back to the app's focused window.
+    private func observed(_ element: AXUIElement) {
+        var wid: CGWindowID = 0
+        if _AXUIElementGetWindow(element, &wid) == .success, wid != 0 { bump(wid); return }
+        var v: AnyObject?
+        if AXUIElementCopyAttributeValue(element, kAXFocusedWindowAttribute as CFString, &v) == .success,
+           let w = v, _AXUIElementGetWindow(w as! AXUIElement, &wid) == .success, wid != 0 { bump(wid) }
+    }
+
+    private func addObserver(for pid: pid_t) {
+        guard observers[pid] == nil, pid != ProcessInfo.processInfo.processIdentifier else { return }
+        var obs: AXObserver?
+        // C function pointer — captures nothing; it hands the event back via the refcon'd self.
+        let callback: AXObserverCallback = { _, element, _, refcon in
+            guard let refcon else { return }
+            Unmanaged<WindowManager>.fromOpaque(refcon).takeUnretainedValue().observed(element)
+        }
+        guard AXObserverCreate(pid, callback, &obs) == .success, let obs else { return }
+        let axApp = AXUIElementCreateApplication(pid)
+        let refcon = Unmanaged.passUnretained(self).toOpaque()
+        // ponytail: focus + main + created cover switch-window and new-window; add the
+        // miniaturize notifications if minimized-window ordering ever needs to be exact.
+        for note in [kAXFocusedWindowChangedNotification, kAXMainWindowChangedNotification, kAXWindowCreatedNotification] {
+            AXObserverAddNotification(obs, axApp, note as CFString, refcon)
+        }
+        CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(obs), .defaultMode)
+        observers[pid] = obs
+    }
+
+    private func removeObserver(for pid: pid_t) {
+        guard let obs = observers.removeValue(forKey: pid) else { return }
+        CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(obs), .defaultMode)
+    }
+
+    /// Front-to-back z-order of on-screen windows (current Space); ids only, so no Screen
+    /// Recording needed. Used to seed the MRU at launch so the first open is sane.
+    private static func onScreenZOrder() -> [CGWindowID] {
+        let opts: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard let info = CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]] else { return [] }
+        return info.compactMap { $0[kCGWindowNumber as String] as? CGWindowID }
+    }
+
+    /// Big enough to be something you'd switch to. Measured, not guessed: Chromium's status
+    /// bubble (the link preview bottom-left) is a real, ordered-in, titleless layer-0 window
+    /// 43px tall whose width tracks the URL — it flickers in and out on every hover and showed
+    /// up as a bare "Helium" row at the top of the list. Its tab-drag overlays are 39px tall.
+    /// ponytail: 100px in both dimensions. A genuinely tiny window (a mini player) would drop
+    /// out too — switch to an area test, or require a title, if one ever shows up missing.
+    static func isSwitchableSize(_ w: Double, _ h: Double) -> Bool { w >= 100 && h >= 100 }
+
+    /// Real, switchable windows only. `kAXWindows` also hands back the invisible helper
+    /// windows apps hang off it — notably Teams' "Microsoft Teams Notification" window, which
+    /// raises into nothing: Teams goes frontmost with no window on screen and reads as "the
+    /// window crashed". Strict is safe here because the SkyLight pass is the backstop — a real
+    /// layer-0 window we drop still shows up there, and raise() re-resolves its AX element via
+    /// findAXWindow. Junk windows aren't layer 0, so they fall out entirely. Covered by selftest.
+    static func isSwitchable(subrole: String?) -> Bool {
+        subrole == kAXStandardWindowSubrole as String || subrole == kAXDialogSubrole as String
     }
 
     /// AX windows on the current Space (+ minimized). These carry the AXUIElement
@@ -183,6 +190,9 @@ final class WindowManager {
             for axWin in axWindows {
                 var wid: CGWindowID = 0
                 guard _AXUIElementGetWindow(axWin, &wid) == .success else { continue }
+                var s: AnyObject?
+                AXUIElementCopyAttributeValue(axWin, kAXSubroleAttribute as CFString, &s)
+                guard Self.isSwitchable(subrole: s as? String) else { continue }
                 var t: AnyObject?
                 AXUIElementCopyAttributeValue(axWin, kAXTitleAttribute as CFString, &t)
                 let title = (t as? String) ?? ""
@@ -212,7 +222,9 @@ final class WindowManager {
         let mine = NSRunningApplication.current.processIdentifier
         var out: [WindowInfo] = []
         for w in desc {
+            let b = w[kCGWindowBounds as String] as? [String: Any] ?? [:]
             guard (w[kCGWindowLayer as String] as? Int) == 0,
+                  Self.isSwitchableSize(b["Width"] as? Double ?? 0, b["Height"] as? Double ?? 0),
                   let wid = w[kCGWindowNumber as String] as? CGWindowID,
                   let pid = w[kCGWindowOwnerPID as String] as? pid_t, pid != mine,
                   let app = NSRunningApplication(processIdentifier: pid),
@@ -231,20 +243,37 @@ final class WindowManager {
     /// AXUIElement for precise raise + a real title). SkyLight windows with ids AX
     /// didn't return are other-Space windows, appended as-is — so an app split across
     /// Spaces shows all its windows.
+    ///
+    /// SkyLight is also the sanity check on AX. `kAXWindows` hands back helper windows the
+    /// user can't switch to — Chromium's offscreen tab-drag overlays (which is where the
+    /// titleless "Helium" row came from), Teams' notification window — and they show up as
+    /// rows titled with the bare app name that raise into nothing. SkyLight's visible-window
+    /// list contains none of them, so an AX window it doesn't know is dropped. Minimized
+    /// windows are the exception: they're legitimately absent from a *visible* list.
     static func merge(_ ax: [WindowInfo], _ allSpace: [WindowInfo]) -> [WindowInfo] {
-        let have = Set(ax.map { $0.id })
-        return ax + allSpace.filter { !have.contains($0.id) }
+        guard !allSpace.isEmpty else { return ax }   // SkyLight unavailable → AX-only, unfiltered
+        let live = Set(allSpace.map { $0.id })
+        let real = ax.filter { live.contains($0.id) || $0.minimized }
+        let have = Set(real.map { $0.id })
+        return real + allSpace.filter { !have.contains($0.id) }
     }
 
     func raise(_ win: WindowInfo) {
         let ax = win.axWindow ?? Self.findAXWindow(pid: win.pid, id: win.id)
         NSLog("THOCK raise id=\(win.id) app=\(win.appName) axFromEnum=\(win.axWindow != nil) axResolved=\(ax != nil)")
         if let ax {
-            // Current Space (AX-resolvable): precise. De-minimize, claim front + key at the
-            // window-server level, then raise the exact window.
-            AXUIElementSetAttributeValue(ax, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
-            _ = SkyLight.focus(wid: win.id)
-            AXUIElementSetAttributeValue(ax, kAXMainAttribute as CFString, kCFBooleanTrue)
+            // Current Space (AX-resolvable): de-minimize (only if actually minimized — writing AX
+            // attributes to a live window is a poke some apps handle badly), activate the app,
+            // raise the exact window. Plain AppKit + AX on purpose: this used to claim front at
+            // the window-server level instead (_SLPSSetFrontProcessWithOptions + AltTab's
+            // reverse-engineered 0xf8 event records + kAXMain), which was tighter and destroyed
+            // Microsoft Teams' window on every switch — Teams came forward, then the window died
+            // a beat later with the app still running. Verified by A/B on the affected machine.
+            // ponytail: activate() brings the app's other windows along, and a multi-window app
+            // can end up raised-but-not-key. If typing ever lands in the wrong window, set
+            // kAXFocused on the target too — and re-test Teams, since that's the poke that broke it.
+            if win.minimized { AXUIElementSetAttributeValue(ax, kAXMinimizedAttribute as CFString, kCFBooleanFalse) }
+            NSRunningApplication(processIdentifier: win.pid)?.activate()
             AXUIElementPerformAction(ax, kAXRaiseAction as CFString)
         } else {
             // Off Space, no AX element (macOS 27's kAXWindows omits other-Space windows).

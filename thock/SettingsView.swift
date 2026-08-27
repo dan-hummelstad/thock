@@ -6,8 +6,9 @@ import SwiftUI
 
 // Dark, sidebar-style settings à la boring.notch / Alcove: colored category icons on
 // the left, grouped "cards" of rows on the right. Hosted in a hidden-title-bar NSWindow
-// (see AppDelegate.openSettings) so the chrome matches.
-private enum Theme {
+// (see AppDelegate.openSettings) so the chrome matches. Internal (not private): the
+// Scrolling/Mouse panes live in MouseScroll/MousePointer/MouseButtons.swift.
+enum Theme {
     static let bg = Color(red: 0.086, green: 0.094, blue: 0.114)
     static let panel = Color(red: 0.066, green: 0.073, blue: 0.090)
     static let card = Color(red: 0.137, green: 0.149, blue: 0.176)
@@ -18,12 +19,14 @@ private enum Theme {
 }
 
 enum SettingsSection: String, CaseIterable, Identifiable {
-    case general, keybinds, permissions, about
+    case general, keybinds, scrolling, mouse, permissions, about
     var id: String { rawValue }
     var title: String {
         switch self {
         case .general: return "General"
         case .keybinds: return "Keybinds"
+        case .scrolling: return "Scrolling"
+        case .mouse: return "Mouse"
         case .permissions: return "Permissions"
         case .about: return "About"
         }
@@ -32,6 +35,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .general: return "gearshape.fill"
         case .keybinds: return "command"
+        case .scrolling: return "arrow.up.and.down"
+        case .mouse: return "computermouse.fill"
         case .permissions: return "hand.raised.fill"
         case .about: return "info.circle.fill"
         }
@@ -40,6 +45,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .general: return .gray
         case .keybinds: return .indigo
+        case .scrolling: return .teal
+        case .mouse: return .pink
         case .permissions: return .orange
         case .about: return .blue
         }
@@ -99,6 +106,8 @@ struct SettingsView: View {
             Spacer().frame(height: 30)          // clear the traffic-light buttons
             sidebarRow(.general)
             sidebarRow(.keybinds)
+            sidebarRow(.scrolling)
+            sidebarRow(.mouse)
             sidebarHeader("Setup")
             sidebarRow(.permissions)
             sidebarHeader("Thock")
@@ -150,6 +159,8 @@ struct SettingsView: View {
             switch nav.section {
             case .general:     general
             case .keybinds:    keybinds
+            case .scrolling:   ScrollingPane()                                     // MouseScroll.swift
+            case .mouse:       VStack(alignment: .leading, spacing: 22) { PointerPane(); ButtonsPane() }   // MousePointer / MouseButtons.swift
             case .permissions: permissions
             case .about:       about
             }
@@ -172,12 +183,8 @@ struct SettingsView: View {
                 }
                 Divider().overlay(Theme.stroke)
                 row("Hover delay") {
-                    HStack(spacing: 10) {
-                        Slider(value: Binding(get: { Double(dwellMillis) }, set: { dwellMillis = Int($0) }),
-                               in: 0...500, step: 10).frame(width: 150).tint(Theme.accent)
-                        Text("\(dwellMillis) ms").font(.system(size: 12).monospacedDigit())
-                            .foregroundStyle(Theme.dim).frame(width: 50, alignment: .trailing)
-                    }
+                    sliderRow(Binding(get: { Double(dwellMillis) }, set: { dwellMillis = Int($0) }),
+                              in: 0...500, step: 10, unit: "ms")
                 }
             }
             group("Window previews",
@@ -269,10 +276,12 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: building blocks
+}
 
-    @ViewBuilder
-    private func group<C: View>(_ title: String, footer: String? = nil, @ViewBuilder _ content: () -> C) -> some View {
+// MARK: building blocks — free functions so the Scrolling/Mouse panes in other files share them.
+
+@ViewBuilder
+func group<C: View>(_ title: String, footer: String? = nil, @ViewBuilder _ content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title.uppercased()).font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.dim)
             VStack(spacing: 0) { content() }
@@ -282,7 +291,7 @@ struct SettingsView: View {
         }
     }
 
-    private func row<C: View>(_ title: String, @ViewBuilder _ control: () -> C) -> some View {
+func row<C: View>(_ title: String, @ViewBuilder _ control: () -> C) -> some View {
         HStack {
             Text(title).font(.system(size: 13)).foregroundStyle(Theme.label)
             Spacer(minLength: 16)
@@ -296,7 +305,7 @@ struct SettingsView: View {
     // does — same path the sidebar rows already use successfully.
     // Custom switch (onTapGesture, not Toggle) — reliable in this hosted window and
     // matches the design. Tap the whole capsule to flip.
-    private func switchToggle(_ on: Bool) -> some View {
+func switchToggle(_ on: Bool) -> some View {
         Capsule()
             .fill(on ? Theme.accent : Color.white.opacity(0.18))
             .frame(width: 38, height: 22)
@@ -308,7 +317,26 @@ struct SettingsView: View {
             .contentShape(Capsule())
     }
 
-    private func keycap(_ t: String) -> some View {
+/// Slider plus an editable number: drag, or click the number and type one (Return or clicking
+/// away commits). Typed values are snapped to `step` and clamped to `range` on the way in, so
+/// the slider and the stored pref never disagree. `digits` = decimals shown/parsed.
+func sliderRow(_ value: Binding<Double>, in range: ClosedRange<Double>, step: Double, unit: String, digits: Int = 0) -> some View {
+    let snapped = Binding<Double>(
+        get: { value.wrappedValue },
+        set: { value.wrappedValue = min(max(($0 / step).rounded() * step, range.lowerBound), range.upperBound) })
+    return HStack(spacing: 8) {
+        Slider(value: snapped, in: range, step: step).frame(width: 150).tint(Theme.accent)
+        TextField("", value: snapped, format: .number.precision(.fractionLength(digits)))
+            .textFieldStyle(.plain).multilineTextAlignment(.trailing)
+            .font(.system(size: 12).monospacedDigit()).foregroundStyle(Theme.label)
+            .padding(.horizontal, 5).padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.08)))
+            .frame(width: 48)
+        Text(unit).font(.system(size: 12)).foregroundStyle(Theme.dim).fixedSize()
+    }
+}
+
+func keycap(_ t: String) -> some View {
         Text(t).font(.system(size: 13, weight: .medium))
             .foregroundStyle(Theme.label)
             .padding(.horizontal, 9).padding(.vertical, 3)
@@ -316,11 +344,10 @@ struct SettingsView: View {
             .overlay(RoundedRectangle(cornerRadius: 5).stroke(Theme.stroke))
     }
 
-    private func pill(_ t: String, _ action: @escaping () -> Void) -> some View {
-        Text(t).font(.system(size: 12, weight: .semibold)).foregroundStyle(.black.opacity(0.85))
-            .padding(.horizontal, 13).padding(.vertical, 5)
-            .background(Capsule().fill(Theme.accent))
-            .contentShape(Capsule())
-            .onTapGesture(perform: action)
-    }
+func pill(_ t: String, _ action: @escaping () -> Void) -> some View {
+    Text(t).font(.system(size: 12, weight: .semibold)).foregroundStyle(.black.opacity(0.85))
+        .padding(.horizontal, 13).padding(.vertical, 5)
+        .background(Capsule().fill(Theme.accent))
+        .contentShape(Capsule())
+        .onTapGesture(perform: action)
 }

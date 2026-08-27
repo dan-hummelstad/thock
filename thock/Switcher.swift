@@ -7,6 +7,8 @@ struct Row: Identifiable {
     let title: String
     let icon: NSImage?
     var preview: NSImage?
+    var grouped = false           // member of the active window-group (badge + pin-to-top)
+    var launch = false            // app-launch result (search only), listed under a LAUNCH divider
 }
 
 extension Edge {
@@ -60,6 +62,11 @@ final class SwitcherModel: ObservableObject {
     @Published var tabRows: [Row] = []
     @Published var tabSelected = 0
     @Published var tabsVisible = false
+    // Search bar (sticky switcher only): shows what's been typed to filter the window list.
+    @Published var searchVisible = false
+    @Published var searchQuery = ""
+    // Active window-group label, e.g. "GROUP 2". "" hides the indicator (no group engaged).
+    @Published var groupLabel = ""
     var onPick: (Int) -> Void = { _ in }
     var onPickTab: (Int) -> Void = { _ in }
     var onDismiss: () -> Void = {}
@@ -135,6 +142,7 @@ struct BlobView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: model.edge.alignment)
         .animation(morph, value: model.expanded)
         .animation(morph, value: model.tabsVisible)
+        .animation(.easeOut(duration: 0.14), value: model.listHeight)   // smooth resize as search filters
     }
 
     // Window notch flush to the wall; the tab card blooms out on the inward side
@@ -178,10 +186,56 @@ struct BlobView: View {
     }
 
     private var list: some View {
+        VStack(spacing: 8) {
+            if model.searchVisible { searchBar }
+            if !model.groupLabel.isEmpty { groupHeader }
+            rowScroll
+        }
+    }
+
+    // Active window-group indicator. Hidden until a group key is pressed this session.
+    private var groupHeader: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "square.stack.3d.up.fill").font(.system(size: 10, weight: .semibold))
+            Text(model.groupLabel).font(.system(size: 10, weight: .bold))
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(Color.accentColor.opacity(0.9))
+        .padding(.horizontal, 8)
+        .frame(height: 18)
+    }
+
+    // Type-to-filter field (sticky switcher). Shows the live query or a placeholder; the
+    // typing itself is captured by the event tap, not a focused NSTextField.
+    private var searchBar: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.5))
+            if model.searchQuery.isEmpty {
+                Text("Search windows").font(.system(size: 12)).foregroundStyle(.white.opacity(0.35)).lineLimit(1)
+            } else {
+                Text(model.searchQuery).font(.system(size: 12)).foregroundStyle(.white.opacity(0.95)).lineLimit(1)
+                Rectangle().fill(Color.accentColor).frame(width: 1.5, height: 14)   // insertion caret
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 9)
+        .frame(height: 26)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.white.opacity(0.08)))
+        // Accent ring: reads as a focused field, so it's clear you can type the moment it opens.
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color.accentColor.opacity(0.5), lineWidth: 1))
+    }
+
+    private var rowScroll: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: 3) {
                     ForEach(Array(model.rows.enumerated()), id: \.element.id) { idx, row in
+                        // Divider where the pinned group members end and the rest begin.
+                        if idx > 0, model.rows[idx - 1].grouped, !row.grouped {
+                            Rectangle().fill(.white.opacity(0.12)).frame(height: 1).padding(.horizontal, 8).padding(.vertical, 1)
+                        }
+                        if row.launch, idx == 0 || !model.rows[idx - 1].launch { launchDivider }
                         rowView(idx, row).id(idx)
                     }
                 }
@@ -194,8 +248,19 @@ struct BlobView: View {
         }
     }
 
+    private var launchDivider: some View {
+        HStack(spacing: 6) {
+            Rectangle().fill(.white.opacity(0.12)).frame(height: 1)
+            Text("LAUNCH").font(.system(size: 9, weight: .semibold)).tracking(1.2).foregroundStyle(.white.opacity(0.45))
+            Rectangle().fill(.white.opacity(0.12)).frame(height: 1)
+        }
+        .padding(.horizontal, 8).frame(height: 14)
+    }
+
     @ViewBuilder private func rowView(_ idx: Int, _ row: Row) -> some View {
         let isSel = idx == model.selected
+        // Dim non-members while a group is engaged (any row grouped), so members read as the set.
+        let dim = !row.grouped && !isSel && model.rows.contains { $0.grouped }
         HStack(spacing: 8) {
             ZStack {
                 if let p = row.preview {
@@ -218,10 +283,12 @@ struct BlobView: View {
             Text(row.title).lineLimit(1).font(.system(size: 12, weight: isSel ? .medium : .regular))
                 .foregroundStyle(.white.opacity(isSel ? 1 : 0.78))
             Spacer(minLength: 0)
+            if row.grouped { Circle().fill(Color.accentColor).frame(width: 6, height: 6) }   // group badge
         }
         .padding(.horizontal, 6)
         .frame(height: Layout.rowHeight)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .opacity(dim ? 0.4 : 1)
         .background {
             if isSel {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -317,6 +384,29 @@ struct BlobView: View {
     }
 }
 
+// MARK: - Window groups
+
+/// Ten window groups (1–10), each a set of CGWindowIDs, persisted in UserDefaults.
+/// ponytail: keyed by window id, so a group survives a Thock relaunch while its windows stay
+/// open; a closed+reopened window gets a fresh id and silently drops out. Upgrade to app+title
+/// matching if rejoining reopened windows ever matters.
+final class WindowGroups {
+    static let count = 10
+    private let key = "windowGroups"
+    private var groups: [Set<CGWindowID>]
+
+    init() {
+        let raw = (UserDefaults.standard.array(forKey: key) as? [[Int]]) ?? []
+        groups = (0..<Self.count).map { i in Set((raw.indices.contains(i) ? raw[i] : []).map { CGWindowID($0) }) }
+    }
+
+    func members(_ group: Int) -> Set<CGWindowID> { groups[group - 1] }
+    func add(_ id: CGWindowID, to group: Int) { groups[group - 1].insert(id); save() }
+    func remove(_ id: CGWindowID, from group: Int) { groups[group - 1].remove(id); save() }
+
+    private func save() { UserDefaults.standard.set(groups.map { $0.map(Int.init) }, forKey: key) }
+}
+
 // MARK: - Controller
 
 /// Owns the edge panel. Invisible (ordered out) when idle; morphs in on demand.
@@ -324,12 +414,24 @@ final class SwitcherController {
     let manager: WindowManager
     private let panel: NSPanel
     private let model = SwitcherModel()
+    private var allItems: [WindowInfo] = []      // full enumeration; `items` is the search-filtered view
     private var items: [WindowInfo] = []
+    private var launchItems: [AppCatalog.Entry] = []   // search-only app rows, appended after `items`
+    // ponytail: launch rows borrow the CGWindowID id space from the top; real ids are small.
+    private static let launchID: CGWindowID = 0xFFFF_0000
+    private var searchQuery = ""
     private var collapseWork: DispatchWorkItem?
+
+    private let groups = WindowGroups()
+    private var activeGroup = 1
+    private var groupEngaged = false             // groups touch the view only after a group key this session
 
     private(set) var isExpanded = false
     private(set) var openedByHotkey = false
     private(set) var sticky = false
+
+    /// True while the main window list is the active layer — gates the group keys.
+    var onWindowLayer: Bool { isExpanded && layer == .windows }
 
     // Tab layer (browser tabs of the selected window). `layer` gates which list the
     // step/commit/cancel keys drive.
@@ -355,7 +457,11 @@ final class SwitcherController {
         panel.hasShadow = false
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
-        panel.level = .popUpMenu
+        // Above fullscreen apps that grab a high window level (Parallels VM, some games),
+        // else the blob is summoned behind them on their Space. Shielding level is the
+        // documented "over everything, incl. fullscreen" tier.
+        // ponytail: fixed at shielding level; if it ever covers something it shouldn't, drop to .screenSaver.
+        panel.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.contentView = NSHostingView(rootView: BlobView(model: model))
@@ -388,20 +494,23 @@ final class SwitcherController {
     func expand(byHotkey: Bool, sticky: Bool = false) {
         collapseWork?.cancel(); collapseWork = nil
         guard !isExpanded else { return }
-        items = manager.windows()
+        allItems = manager.windows()
+        items = allItems
         guard !items.isEmpty else { return }
         let liveIDs = Set(items.map(\.id))
         Thumbnailer.cache = Thumbnailer.cache.filter { liveIDs.contains($0.key) }   // drop closed windows
         installFrame()
         openedByHotkey = byHotkey
         self.sticky = sticky
-        // Seed with the last-known thumbnail so off-Space windows aren't blank; capture
-        // refreshes the ones currently on screen. Off => icons only.
-        let previews = Prefs.previewsEnabled
-        model.rows = items.map { Row(id: $0.id, title: $0.title, icon: $0.icon,
-                                     preview: previews ? Thumbnailer.cached($0.id) : nil) }
+        // Search: only the sticky switcher filters (you're typing, not mid-chord). Fresh each open.
+        searchQuery = ""
+        model.searchQuery = ""
+        model.searchVisible = sticky
+        groupEngaged = false          // groups stay out of the way until a group key is pressed
+        // rebuild() maps items → rows (seeding last-known thumbnails so off-Space windows aren't
+        // blank; capture below refreshes the on-screen ones) and sets the list height.
+        rebuild()
         model.selected = byHotkey ? (items.count > 1 ? 1 : 0) : 0
-        model.listHeight = Layout.contentHeight(items.count, cap: panel.frame.height - 16)
         isExpanded = true
         panel.ignoresMouseEvents = false
         model.expanded = false                 // start collapsed (window still hidden — no flash)
@@ -409,7 +518,7 @@ final class SwitcherController {
         // Tactile bump as it pops out. No-op on non-Force-Touch trackpads / external mice.
         NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
         DispatchQueue.main.async { [weak self] in self?.model.expanded = true }   // then morph in
-        if previews, Thumbnailer.available {
+        if Prefs.previewsEnabled, Thumbnailer.available {
             Thumbnailer.capture(ids: items.map { $0.id }) { [weak self] id, img in
                 self?.model.setPreview(id: id, image: img)
             }
@@ -427,8 +536,9 @@ final class SwitcherController {
             guard !actionItems.isEmpty else { return }
             model.tabSelected = (model.tabSelected + d + actionItems.count) % actionItems.count
         case .windows:
-            guard !items.isEmpty else { return }
-            model.selected = (model.selected + d + items.count) % items.count
+            let n = model.rows.count
+            guard n > 0 else { return }
+            model.selected = (model.selected + d + n) % n
         }
     }
 
@@ -466,7 +576,112 @@ final class SwitcherController {
         if layer == .tabs { commitTab(); return }
         let sel = model.selected
         collapse()
-        if items.indices.contains(sel) { manager.raise(items[sel]) }
+        activate(sel)
+    }
+
+    /// Row index → raise the window, or launch the app row past the windows.
+    private func activate(_ idx: Int) {
+        if items.indices.contains(idx) { manager.raise(items[idx]) }
+        else if launchItems.indices.contains(idx - items.count) { AppCatalog.launch(launchItems[idx - items.count]) }
+    }
+
+    // MARK: search (sticky switcher only — type to filter by app name + window title)
+
+    private static let searchBarExtra: CGFloat = 34    // search bar height + gap, added when searching
+    private static let groupHeaderExtra: CGFloat = 26  // group indicator height + gap, added when engaged
+    private static let launchDividerExtra: CGFloat = 17 // LAUNCH divider height + row gap, added when app rows show
+    private func listHeightFor(_ count: Int) -> CGFloat {
+        Layout.contentHeight(count, cap: panel.frame.height - 16)
+            + (model.searchVisible ? Self.searchBarExtra : 0)
+            + (model.groupLabel.isEmpty ? 0 : Self.groupHeaderExtra)
+    }
+
+    /// True while the sticky switcher's window list is showing — typed characters filter it.
+    /// The hold-Tab hotkey switcher never searches (you're mid-chord, not typing).
+    var searchActive: Bool { isExpanded && sticky && layer == .windows }
+
+    func searchAppend(_ s: String) {
+        guard searchActive else { return }
+        searchQuery += s
+        applySearch()
+    }
+    func searchBackspace() {
+        guard searchActive, !searchQuery.isEmpty else { return }
+        searchQuery.removeLast()
+        applySearch()
+    }
+
+    private func applySearch() { rebuild() }
+
+    /// Single source for the visible list: search-filter allItems, float the active group's
+    /// members to the top when a group is engaged, mirror into rows (with `grouped` flags +
+    /// seeded previews), refresh the group label + list height, and clamp the selection.
+    private func rebuild() {
+        let members = groupEngaged ? groups.members(activeGroup) : []
+        items = Self.membersFirst(Self.search(allItems, searchQuery), members)
+        let previews = Prefs.previewsEnabled
+        launchItems = sticky ? AppCatalog.search(AppCatalog.all(), searchQuery) : []
+        model.rows = items.map { Row(id: $0.id, title: $0.title, icon: $0.icon,
+                                     preview: previews ? Thumbnailer.cached($0.id) : nil,
+                                     grouped: members.contains($0.id)) }
+            + launchItems.enumerated().map { Row(id: Self.launchID + CGWindowID($0.offset), title: $0.element.name,
+                                                 icon: AppCatalog.icon($0.element), preview: nil, launch: true) }
+        model.searchQuery = searchQuery
+        model.groupLabel = groupEngaged ? "GROUP \(activeGroup)" : ""
+        let count = model.rows.count
+        if model.selected >= count { model.selected = max(0, count - 1) }
+        model.listHeight = listHeightFor(count) + (launchItems.isEmpty ? 0 : Self.launchDividerExtra)
+    }
+
+    /// Stable partition: `members` first (keeping their relative order), everything else after.
+    static func membersFirst(_ ws: [WindowInfo], _ members: Set<CGWindowID>) -> [WindowInfo] {
+        guard !members.isEmpty else { return ws }
+        return ws.enumerated().sorted {
+            let a = members.contains($0.element.id), b = members.contains($1.element.id)
+            return a != b ? a : $0.offset < $1.offset
+        }.map(\.element)
+    }
+
+    /// Wrap a 1-based group index by `delta`, cycling within 1...count.
+    static func wrapGroup(_ current: Int, _ delta: Int, count: Int) -> Int {
+        ((current - 1 + delta) % count + count) % count + 1
+    }
+
+    // MARK: window groups (hold-hotkey window layer)
+
+    /// Jump to a group by number (1–10) and pin its members to the top.
+    func selectGroup(_ g: Int) {
+        guard onWindowLayer, (1...WindowGroups.count).contains(g) else { return }
+        activeGroup = g; groupEngaged = true
+        rebuild(); model.selected = 0
+    }
+    /// Cycle the active group forward (+1) / back (−1).
+    func cycleGroup(_ delta: Int) {
+        guard onWindowLayer else { return }
+        activeGroup = Self.wrapGroup(activeGroup, delta, count: WindowGroups.count); groupEngaged = true
+        rebuild(); model.selected = 0
+    }
+    func assignSelectedToGroup()   { changeMembership(add: true) }
+    func removeSelectedFromGroup() { changeMembership(add: false) }
+
+    private func changeMembership(add: Bool) {
+        guard onWindowLayer, items.indices.contains(model.selected) else { return }
+        let id = items[model.selected].id
+        groupEngaged = true
+        if add { groups.add(id, to: activeGroup) } else { groups.remove(id, from: activeGroup) }
+        rebuild()
+        if let i = items.firstIndex(where: { $0.id == id }) { model.selected = i }   // follow the window as it moves
+    }
+
+    /// Filter windows by app name + title. All whitespace-separated tokens must match
+    /// (case-insensitive substring), so "saf inbox" finds a Safari window titled Inbox.
+    static func search(_ items: [WindowInfo], _ query: String) -> [WindowInfo] {
+        let tokens = query.lowercased().split(separator: " ").map(String.init)
+        guard !tokens.isEmpty else { return items }
+        return items.filter { w in
+            let hay = (w.appName + " " + w.title).lowercased()
+            return tokens.allSatisfy(hay.contains)
+        }
     }
 
     /// Esc / cancel: pop a side layer (tabs or Dock actions) back to the window list
@@ -480,9 +695,9 @@ final class SwitcherController {
     }
 
     private func pick(_ idx: Int) {
-        guard items.indices.contains(idx) else { return }
+        guard model.rows.indices.contains(idx) else { return }
         collapse()
-        manager.raise(items[idx])
+        activate(idx)
     }
 
     // MARK: tab layer
@@ -589,17 +804,33 @@ final class SwitcherController {
         openedByHotkey = false
         sticky = false
         layer = .windows
+        groupEngaged = false; model.groupLabel = ""   // next open starts on the plain MRU view
         tabItems = []
         actionItems = []
         actionTarget = nil
         panel.ignoresMouseEvents = true
         model.expanded = false                 // morph out
         model.tabsVisible = false
+        model.searchVisible = false
+        searchQuery = ""; model.searchQuery = ""
         model.selected = 0                      // reset so the next open doesn't animate a scroll from a stale index
         model.tabSelected = 0
-        let work = DispatchWorkItem { [weak self] in self?.panel.orderOut(nil) }
+        // Keep the blob on top while it morphs out — even across a Space-slide. Activating an
+        // off-Space window reorders the destination Space's window stack and drops this panel
+        // behind the very window we switched to; so re-assert front across the ~0.45s slide,
+        // then hide. On same-Space collapses the panel is already front, so these are no-ops.
+        keepFrontThenHide(ticks: 6, interval: 0.08)   // ~0.48s > the ~0.45s slide
+    }
+
+    /// Re-order the panel front `ticks` times, then order it out. The chain hangs off
+    /// `collapseWork`, so a re-open mid-collapse (expand() cancels it) stops it cleanly.
+    /// ponytail: fixed re-front ticks, not a "Space settled" signal — there isn't one.
+    private func keepFrontThenHide(ticks: Int, interval: Double) {
+        guard ticks > 0 else { panel.orderOut(nil); return }
+        panel.orderFrontRegardless()
+        let work = DispatchWorkItem { [weak self] in self?.keepFrontThenHide(ticks: ticks - 1, interval: interval) }
         collapseWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)   // hide after settle
+        DispatchQueue.main.asyncAfter(deadline: .now() + interval, execute: work)
     }
 
     private func installFrame() {

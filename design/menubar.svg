@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="18" height="18">
+  <!-- Menu-bar template glyph (alpha only): keycap silhouette; a U-shaped gap separates the top
+       face from the sides/front, the T is knocked out. Source for MenuBarIcon.imageset. -->
+  <mask id="m">
+    <rect width="18" height="18" fill="#fff"/>
+    <path d="M3.5,1.5 V9.5 a2,2 0 0 0 2,2 H12.5 a2,2 0 0 0 2,-2 V1.5" fill="none" stroke="#000" stroke-width="0.9"/>
+    <polygon points="6,3.5 12,3.5 12,5.2 9.9,5.2 9.9,9.8 8.1,9.8 8.1,5.2 6,5.2" fill="#000"/>
+  </mask>
+  <polygon points="3.5,1.5 14.5,1.5 16.5,5.5 16.5,16 1.5,16 1.5,5.5"
+           fill="#000" stroke="#000" stroke-width="1.6" stroke-linejoin="round" mask="url(#m)"/>
+</svg>

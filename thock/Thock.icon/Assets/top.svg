@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="0" y1="184" x2="0" y2="648">
+      <stop offset="0" stop-color="#4bebbe"/><stop offset="1" stop-color="#2fcfa3"/></linearGradient>
+    <radialGradient id="dish" cx="0.5" cy="0.42" r="0.6">
+      <stop offset="0" stop-color="#000" stop-opacity="0.10"/><stop offset="0.7" stop-color="#000" stop-opacity="0"/></radialGradient>
+  </defs>
+  <polygon points="288,232 736,232 736,600 288,600" fill="url(#g)" stroke="url(#g)" stroke-width="96" stroke-linejoin="round"/>
+  <rect x="240" y="184" width="544" height="464" rx="48" fill="url(#dish)"/>
+</svg>

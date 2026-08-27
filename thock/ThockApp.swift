@@ -5,15 +5,21 @@ import SwiftUI
 // Keycodes
 private let kTab: Int64 = 48, kEsc: Int64 = 53, kReturn: Int64 = 36
 private let kKeypadEnter: Int64 = 76, kUp: Int64 = 126, kDown: Int64 = 125
-private let kLeft: Int64 = 123, kRight: Int64 = 124, kGrave: Int64 = 50
+private let kLeft: Int64 = 123, kRight: Int64 = 124, kGrave: Int64 = 50, kDelete: Int64 = 51
+// Window-group chord keys. Matched by keycode, not decoded char: the default trigger is Option,
+// and Option+e / Option+1 / Option+= rewrite into dead keys and symbols.
+private let kEqual: Int64 = 24, kMinus: Int64 = 27, kE: Int64 = 14, kQ: Int64 = 12
+private let kDigitGroup: [Int64: Int] = [18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9, 29: 10]
 
 @main
 struct ThockApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @ObservedObject private var awake = KeepAwake.shared   // menu re-renders when the toggle flips
     init() { Prefs.register(); runSelfTestIfRequested() }
     var body: some Scene {
-        MenuBarExtra("Thock", systemImage: "square.stack.3d.up.fill") {
+        MenuBarExtra("Thock", image: "MenuBarIcon") {
             Button("Settings…") { delegate.openSettings() }.keyboardShortcut(",", modifiers: .command)
+            Toggle("Keep Awake", isOn: Binding(get: { awake.isOn }, set: { awake.set($0) }))
             Divider()
             Button("Quit Thock") { NSApp.terminate(nil) }.keyboardShortcut("q")
         }
@@ -25,13 +31,14 @@ struct ThockApp: App {
 /// One session event tap. `route` returns true to swallow a key-down.
 final class KeyTap {
     private var tap: CFMachPort?
-    var route: (_ keyCode: Int64, _ flags: CGEventFlags, _ isKeyDown: Bool) -> Bool = { _, _, _ in false }
+    var route: (_ keyCode: Int64, _ flags: CGEventFlags, _ isKeyDown: Bool, _ chars: String) -> Bool = { _, _, _, _ in false }
     var onMouse: (CGEvent) -> Void = { _ in }
     private(set) var isActive = false
 
     func start() {
         let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
-                 | (1 << CGEventType.mouseMoved.rawValue)
+                 | (1 << CGEventType.mouseMoved.rawValue) | (1 << CGEventType.scrollWheel.rawValue)
+                 | (1 << CGEventType.otherMouseDown.rawValue) | (1 << CGEventType.otherMouseUp.rawValue)
         let cb: CGEventTapCallBack = { _, type, event, refcon in
             Unmanaged<KeyTap>.fromOpaque(refcon!).takeUnretainedValue().handle(type, event)
         }
@@ -50,11 +57,18 @@ final class KeyTap {
         switch type {
         case .keyDown:
             let key = event.getIntegerValueField(.keyboardEventKeycode)
-            if route(key, event.flags, true) { return nil }
+            var length = 0
+            var buf = [UniChar](repeating: 0, count: 4)
+            event.keyboardGetUnicodeString(maxStringLength: 4, actualStringLength: &length, unicodeString: &buf)
+            if route(key, event.flags, true, String(utf16CodeUnits: buf, count: length)) { return nil }
         case .flagsChanged:
-            _ = route(-1, event.flags, false)   // for modifier-release commit; never swallowed
+            _ = route(-1, event.flags, false, "")   // for modifier-release commit; never swallowed
         case .mouseMoved:
             onMouse(event)                       // edge reveal; never swallowed
+        case .scrollWheel:
+            return MouseScroll.handle(event)         // inversion + smoothing (MouseScroll.swift); nil swallows
+        case .otherMouseDown, .otherMouseUp:
+            return MouseButtons.handle(type, event)  // side buttons (MouseButtons.swift); nil swallows
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
         default: break
@@ -170,7 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSLog("Thock: accessibility trusted = \(trusted)")
         if !trusted { promptAccessibility() }
 
-        tap.route = { [weak self] key, flags, isDown in self?.routeKey(key, flags, isDown) ?? false }
+        tap.route = { [weak self] key, flags, isDown, chars in self?.routeKey(key, flags, isDown, chars) ?? false }
         // Edge reveal rides the session tap, not a global NSEvent monitor: the tap sees
         // mouse moves even while Thock is the active app (right after Settings, or first
         // launch) — exactly when a global monitor goes silent and reveal appeared broken.
@@ -179,6 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                                dy: CGFloat(event.getDoubleValueField(.mouseEventDeltaY)))
         }
         tap.start()
+        MousePointer.apply()   // push acceleration/sensitivity to the HID services (re-applied on hot-plug)
 
         _ = switcher   // create the (hidden) panel now, ready to reveal on first trigger
         if !tap.isActive {
@@ -189,7 +204,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
 
-        // Keep MRU honest when windows are switched outside our UI.
+        // Keep MRU honest when windows are switched outside our UI. App switches come through
+        // here; same-Space window switches + new windows come through startTracking's AX observers.
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
         ) { [weak self] n in
@@ -197,21 +213,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 self?.manager.bumpFocusedWindow(of: app)
             }
         }
+        manager.startTracking()
     }
+
+    func applicationWillTerminate(_ note: Notification) { MousePointer.restore() }
 
     // MARK: keyboard
 
     private var actionsKeyWasDown = false
 
-    private func routeKey(_ key: Int64, _ flags: CGEventFlags, _ isDown: Bool) -> Bool {
+    private func routeKey(_ key: Int64, _ flags: CGEventFlags, _ isDown: Bool, _ chars: String) -> Bool {
         let mod = Prefs.triggerModifier.cgMask
         if !isDown {   // flagsChanged
             // The configured actions modifier tapped while the switcher is open => peel out
             // the app's quick-actions layer. Ignored if it equals the switcher key, since a
-            // held trigger can't be told apart from a deliberate tap. (↑ still steps back.)
+            // held trigger can't be told apart from a deliberate tap. Suppressed while
+            // searching, so Shift is free to type capitals. (↑ still steps back.)
             let actMask = Prefs.actionsKey.cgMask
             let actDown = flags.contains(actMask)
-            if actDown, !actionsKeyWasDown, actMask != mod, switcher.isExpanded { switcher.enterActions() }
+            if actDown, !actionsKeyWasDown, actMask != mod, switcher.isExpanded, !switcher.searchActive { switcher.enterActions() }
             actionsKeyWasDown = actDown
             // Release the trigger modifier => commit a hotkey session (dismiss in the
             // Dock-actions layer; actions only fire on Return).
@@ -220,8 +240,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         let reverse = flags.contains(.maskShift)
         // Configurable "open browser tabs" key when it isn't Return (Return is owned by the
-        // case below, which also commits). A no-op off the window layer.
-        if switcher.isExpanded, Prefs.tabsKey != .return, key == Prefs.tabsKey.keyCode {
+        // case below, which also commits). A no-op off the window layer. Skipped while
+        // searching, so a Space tabs-key still types a space into the query.
+        if switcher.isExpanded, !switcher.searchActive, Prefs.tabsKey != .return, key == Prefs.tabsKey.keyCode {
             switcher.enterTabs(); return true
         }
         // More keybinds go here — each is `modifier + <key>` routed to a switcher action.
@@ -255,6 +276,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 return true
             }
         default: break
+        }
+        // Window groups — hold-hotkey window list only (search off, so the sticky switcher still
+        // types these). Numbers 1–0 jump to a group, e/q cycle, = / - add/remove the highlighted
+        // window. Claimed (return true) so the Option-rewritten symbol never leaks to the app.
+        if switcher.onWindowLayer, !switcher.searchActive {
+            if let g = kDigitGroup[key] { switcher.selectGroup(g); return true }
+            switch key {
+            case kEqual: switcher.assignSelectedToGroup(); return true
+            case kMinus: switcher.removeSelectedFromGroup(); return true
+            case kE:     switcher.cycleGroup(1); return true
+            case kQ:     switcher.cycleGroup(-1); return true
+            default: break
+            }
+        }
+        // Sticky switcher: any printable key the nav keys didn't claim types into search
+        // (filters by app name + window title); Backspace deletes. The hold-Tab hotkey never
+        // reaches here — searchActive is false — so plain Cmd-Tab is untouched.
+        if switcher.searchActive {
+            if key == kDelete { switcher.searchBackspace(); return true }
+            if !chars.isEmpty, chars.unicodeScalars.allSatisfy({ $0.value >= 0x20 && $0.value != 0x7f }) {
+                switcher.searchAppend(chars); return true
+            }
         }
         return false
     }
@@ -331,12 +374,30 @@ func runSelfTestIfRequested() {
     // Merge dedupes by window id: the AX entry wins for a current-Space window; a
     // same-app window with a different id (another Space) is kept. id 1 is the AX/
     // SkyLight twin (dropped), 9 is app 11's other-Space window (kept).
-    func wi(_ id: CGWindowID, pid: pid_t = 0) -> WindowInfo {
-        WindowInfo(id: id, pid: pid, title: "", appName: "", icon: nil, minimized: false, axWindow: nil)
+    func wi(_ id: CGWindowID, pid: pid_t = 0, min: Bool = false) -> WindowInfo {
+        WindowInfo(id: id, pid: pid, title: "", appName: "", icon: nil, minimized: min, axWindow: nil)
     }
-    assert(WindowManager.merge([wi(1, pid: 10), wi(2, pid: 11)],
-                               [wi(1, pid: 10), wi(9, pid: 11), wi(5, pid: 12)]).map { $0.id } == [1, 2, 9, 5],
+    assert(WindowManager.merge([wi(1, pid: 10)],
+                               [wi(1, pid: 10), wi(9, pid: 11), wi(5, pid: 12)]).map { $0.id } == [1, 9, 5],
            "merge dedupes by id, keeps other-Space windows of known apps")
+    // SkyLight vetoes AX: a window it doesn't list is a helper (Chromium's tab-drag overlay),
+    // unless it's minimized — a visible-window list drops those legitimately.
+    assert(WindowManager.merge([wi(1), wi(7), wi(8, min: true)], [wi(1)]).map { $0.id } == [1, 8],
+           "AX-only window dropped as a helper; minimized AX-only window kept")
+    assert(WindowManager.merge([wi(1), wi(7)], []).map { $0.id } == [1, 7],
+           "no SkyLight (symbols gone) → AX list passes through unfiltered")
+
+    // Global MRU: recently-focused windows lead in MRU order (3, then 1), regardless of Space;
+    // windows never focused since launch (2, 4) fall to the bottom in input order.
+    assert(WindowManager.ordered([1, 2, 3, 4], mru: [3, 1]) == [3, 1, 2, 4],
+           "MRU-first across all Spaces, never-focused windows at the bottom")
+
+    // Window groups: members float to the top keeping input order, then the rest; and the
+    // group index cycles within 1...10.
+    assert(SwitcherController.membersFirst([wi(1), wi(2), wi(3), wi(4)], [3, 1]).map { $0.id } == [1, 3, 2, 4],
+           "grouped windows pin to the top in input order, ungrouped follow")
+    assert(SwitcherController.wrapGroup(1, -1, count: 10) == 10 && SwitcherController.wrapGroup(10, 1, count: 10) == 1,
+           "group cycling wraps 1..10")
 
     // Slam velocity must survive the deceleration at the wall, then lapse.
     var (pk, t) = (CGFloat(0), 0.0)
@@ -376,12 +437,48 @@ func runSelfTestIfRequested() {
     let s3 = WindowManager.spaceGate(now: 2.0, nextAllowed: s2.next, cooldown: 0.45)
     assert(s3.delay == 0 && abs(s3.next - 2.45) < 1e-9, "isolated switch after settle is immediate")
 
+    // Helper windows are too small to be switch targets: Chromium's status bubble is 43px
+    // tall, its tab-drag overlays 39px. Real windows clear both dimensions.
+    assert(!WindowManager.isSwitchableSize(598, 43), "Chromium status bubble dropped")
+    assert(!WindowManager.isSwitchableSize(1800, 39), "tab-drag overlay dropped")
+    assert(!WindowManager.isSwitchableSize(64, 64), "tiny helper dropped")
+    assert(WindowManager.isSwitchableSize(1800, 1130) && WindowManager.isSwitchableSize(400, 300),
+           "real windows kept")
+
+    // Only real windows enter the AX pass; helper windows (Teams' notification window et al.)
+    // raise into nothing, so they're dropped.
+    assert(WindowManager.isSwitchable(subrole: kAXStandardWindowSubrole as String), "standard window kept")
+    assert(WindowManager.isSwitchable(subrole: kAXDialogSubrole as String), "dialog kept")
+    assert(!WindowManager.isSwitchable(subrole: kAXFloatingWindowSubrole as String), "floating helper dropped")
+    assert(!WindowManager.isSwitchable(subrole: nil), "untyped window dropped (SkyLight backstops it)")
+
     // Configurable keybinds map to the codes/masks the router compares against, and the
     // default actions modifier never equals a possible trigger (so it always fires).
     assert(TabsKey.return.keyCode == kReturn && TabsKey.space.keyCode == 49, "tabs key codes")
     assert(ActionsKey.shift.cgMask == .maskShift && ActionsKey.control.cgMask == .maskControl, "actions masks")
     assert(TriggerModifier.allCases.allSatisfy { $0.cgMask != ActionsKey.shift.cgMask },
            "default actions modifier (Shift) never collides with a switcher key")
+
+    // Switcher search: token-AND, case-insensitive, over app name + window title; empty = all.
+    let sw = [wi(1, pid: 1), wi(2, pid: 2), wi(3, pid: 3)].enumerated().map { i, w -> WindowInfo in
+        let (app, title) = [("Safari", "Inbox — Mail"), ("Xcode", "Switcher.swift"), ("Notes", "Groceries")][i]
+        return WindowInfo(id: w.id, pid: w.pid, title: title, appName: app, icon: nil, minimized: false, axWindow: nil)
+    }
+    assert(SwitcherController.search(sw, "").count == 3, "empty query keeps all")
+    assert(SwitcherController.search(sw, "SAF").map(\.appName) == ["Safari"], "case-insensitive app-name match")
+    assert(SwitcherController.search(sw, "swift").map(\.appName) == ["Xcode"], "matches window title")
+    assert(SwitcherController.search(sw, "saf inbox").count == 1, "token-AND spans app name + title")
+    assert(SwitcherController.search(sw, "zzz").isEmpty, "no match → empty")
+    let apps = ["Safari Technology Preview", "Xcode", "Safari"].map { AppCatalog.Entry(name: $0, url: URL(fileURLWithPath: "/Applications/\($0).app")) }
+    assert(AppCatalog.search(apps, "").isEmpty, "launch rows are search-only")
+    assert(AppCatalog.search(apps, "saf").map(\.name) == ["Safari", "Safari Technology Preview"], "prefix hits first, then alphabetical")
+    assert(AppCatalog.search(apps, "tech prev").map(\.name) == ["Safari Technology Preview"], "token-AND on the name")
+    assert(AppCatalog.search(apps, "s", limit: 1).count == 1, "capped")
+
+    // Mouse customisation (MOUSE.md) — each file owns its pure-logic asserts.
+    MouseScroll.selfTest()
+    MousePointer.selfTest()
+    MouseButtons.selfTest()
 
     print("selftest ok"); exit(0)
 }
