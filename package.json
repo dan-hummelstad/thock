@@ -1,0 +1,10 @@
+{
+  "name": "thock",
+  "private": true,
+  "scripts": {
+    "build": "pnpm --filter @thock/keyboard build",
+    "dev": "pnpm --filter @thock/keyboard dev",
+    "test": "pnpm --filter @thock/keyboard test",
+    "deploy": "pnpm --filter @thock/keyboard deploy"
+  }
+}
