@@ -5,6 +5,10 @@
     "build": "pnpm --filter @thock/keyboard build",
     "dev": "pnpm --filter @thock/keyboard dev",
     "test": "pnpm --filter @thock/keyboard test",
-    "deploy": "pnpm --filter @thock/keyboard deploy"
+    "release": "pnpm build && wrangler deploy",
+    "preview": "pnpm build && wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.129.0"
   }
 }
