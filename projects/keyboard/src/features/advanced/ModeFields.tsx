@@ -1,10 +1,10 @@
-import type { KeyHallSettings, KeyMode } from "@/protocol/types"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { SliderField } from "@/features/hall/SliderField"
-import { formatMm } from "@/features/hall/hall-utils"
-import { MT_HOLD_RANGE_MS, TRAVEL_RANGE } from "@/features/hall/constants"
+import type { KeyHallSettings, KeyMode } from "../../protocol/types"
+import { Input } from "@thock/ui/components/ui/input"
+import { Label } from "@thock/ui/components/ui/label"
+import { ToggleGroup, ToggleGroupItem } from "@thock/ui/components/ui/toggle-group"
+import { SliderField } from "../hall/SliderField"
+import { formatMm } from "../hall/hall-utils"
+import { MT_HOLD_RANGE_MS, TRAVEL_RANGE } from "../hall/constants"
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
 

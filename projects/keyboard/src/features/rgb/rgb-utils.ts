@@ -1,5 +1,5 @@
 import type { ComponentType } from "react"
-import type { LightSetting } from "@/protocol/types"
+import type { LightSetting } from "../../protocol/types"
 import {
   Activity,
   CircleDot,

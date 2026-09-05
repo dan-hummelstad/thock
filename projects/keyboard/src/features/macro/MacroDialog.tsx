@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
-import { HID_USAGES } from "@/protocol/keynames"
-import type { KeyboardDevice, Macro, MacroEvent } from "@/protocol/types"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { withBusy } from "@/lib/utils"
-import { MACRO_COUNT } from "@/features/remap/actions"
-import { EventRow, defaultEvent } from "./EventRow"
+import { HID_USAGES } from "../../protocol/keynames"
+import type { KeyboardDevice, Macro, MacroEvent } from "../../protocol/types"
+import { Button } from "@thock/ui/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@thock/ui/components/ui/dialog"
+import { Input } from "@thock/ui/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@thock/ui/components/ui/select"
+import { withBusy } from "@thock/ui/lib/utils"
+import { MACRO_COUNT } from "../remap/actions"
+import { EventRow } from "./EventRow"
+import { defaultEvent } from "./macro-utils"
 
 type Usage = { usage: number; name: string; code: string }
 
@@ -25,6 +26,7 @@ export default function MacroDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const [current, setCurrent] = useState(0)
+  const [lastIndex, setLastIndex] = useState(index)
   const [macro, setMacro] = useState<Macro | null>(null)
   const [busy, setBusy] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -32,9 +34,12 @@ export default function MacroDialog({
   const lastEventTime = useRef(0)
   const held = useRef<Set<string>>(new Set())
 
-  useEffect(() => {
+  // Render-phase reset (not an effect): jump the slot selector to whatever index the caller just opened
+  // the dialog with, only when that prop itself changes — not on every render.
+  if (index !== lastIndex) {
+    setLastIndex(index)
     if (index !== null) setCurrent(index)
-  }, [index])
+  }
 
   const load = useCallback(
     () => withBusy(setBusy, "read macro", async () => setMacro(await device.readMacro(current))),

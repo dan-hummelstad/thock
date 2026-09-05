@@ -1,8 +1,8 @@
 import { LayoutGrid } from "lucide-react"
-import type { KeyboardDevice } from "@/protocol/types"
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
-import { PROFILE_COUNT } from "@/state/device"
+import type { KeyboardDevice } from "../../protocol/types"
+import { Badge } from "@thock/ui/components/ui/badge"
+import { cn } from "@thock/ui/lib/utils"
+import { PROFILE_COUNT } from "../../state/device"
 
 interface ProfilesPageProps {
   device: KeyboardDevice

@@ -2,19 +2,19 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Sparkles } from "lucide-react"
 
-import type { KeyboardDevice, LightSetting } from "@/protocol/types"
-import { LIGHT_EFFECTS } from "@/protocol/light"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
-import { Switch } from "@/components/ui/switch"
-import { useSelection } from "@/state/selection"
-import { KeyboardStage } from "@/components/shell/KeyboardStage"
-import { useKeyboardOverlay } from "@/components/shell/keyboard-overlay"
-import { PageHeader } from "@/components/shell/PageHeader"
-import { SettingCard } from "@/components/shell/SettingCard"
-import { cn, withBusy } from "@/lib/utils"
+import type { KeyboardDevice, LightSetting } from "../../protocol/types"
+import { LIGHT_EFFECTS } from "../../protocol/light"
+import { Button } from "@thock/ui/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@thock/ui/components/ui/card"
+import { Label } from "@thock/ui/components/ui/label"
+import { Slider } from "@thock/ui/components/ui/slider"
+import { Switch } from "@thock/ui/components/ui/switch"
+import { useSelection } from "../../state/selection"
+import { KeyboardStage } from "../../components/shell/KeyboardStage"
+import { useKeyboardOverlay } from "../../components/shell/keyboard-overlay"
+import { KeyPageHeader } from "../../components/shell/KeyPageHeader"
+import { SettingCard } from "@thock/ui/shell/SettingCard"
+import { cn, withBusy } from "@thock/ui/lib/utils"
 import { ColourBlock } from "./ColourBlock"
 import { PRESET_COLOURS, coloursEqual, effectIcon, formatEffectName, lightEqual, rgbToHex, visibleEffects } from "./rgb-utils"
 
@@ -125,11 +125,10 @@ export default function RgbPage({ device, profile }: { device: KeyboardDevice; p
 
   return (
     <KeyboardStage device={device}>
-      <PageHeader
+      <KeyPageHeader
         title="RGB Settings"
         icon={Sparkles}
         help="Set the keyboard's global lighting effect, or select keys to paint their own colours."
-        selection
         subject="key colours"
         actions={
           <>

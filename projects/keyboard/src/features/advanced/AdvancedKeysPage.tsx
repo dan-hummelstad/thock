@@ -2,17 +2,18 @@ import { useMemo } from "react"
 import { toast } from "sonner"
 import { Layers, X } from "lucide-react"
 
-import type { KeyboardDevice, KeyHallSettings } from "@/protocol/types"
-import { keyName } from "@/protocol/keynames"
-import { KeyboardStage } from "@/components/shell/KeyboardStage"
-import { useKeyboardOverlay } from "@/components/shell/keyboard-overlay"
-import { PageHeader } from "@/components/shell/PageHeader"
-import { SettingCard } from "@/components/shell/SettingCard"
-import { Button } from "@/components/ui/button"
-import { useSelection } from "@/state/selection"
-import { plural } from "@/lib/utils"
-import { useHallDraft } from "@/features/hall/useHallDraft"
-import { formatMm } from "@/features/hall/hall-utils"
+import type { KeyboardDevice, KeyHallSettings } from "../../protocol/types"
+import { keyName } from "../../protocol/keynames"
+import { KeyboardStage } from "../../components/shell/KeyboardStage"
+import { useKeyboardOverlay } from "../../components/shell/keyboard-overlay"
+import { KeyPageHeader } from "../../components/shell/KeyPageHeader"
+import { SettingCard } from "@thock/ui/shell/SettingCard"
+import { ApplyRevert } from "@thock/ui/shell/ApplyRevert"
+import { Button } from "@thock/ui/components/ui/button"
+import { useSelection } from "../../state/selection"
+import { plural } from "@thock/ui/lib/utils"
+import { useHallDraft } from "../hall/useHallDraft"
+import { formatMm } from "../hall/hall-utils"
 import { ADVANCED_CARDS, MODE_ICON, MODE_LABEL, type AdvancedCard } from "./advanced-cards"
 import { ModeFields } from "./ModeFields"
 
@@ -103,22 +104,12 @@ export default function AdvancedKeysPage({ device }: AdvancedKeysPageProps) {
 
   return (
     <KeyboardStage device={device}>
-      <PageHeader
+      <KeyPageHeader
         title="Advanced Keys"
         icon={Layers}
         help="Select the key(s) a mode needs, then click a card to apply it."
-        selection
         subject="an advanced key"
-        actions={
-          <>
-            <Button size="sm" onClick={apply} disabled={!dirty || saving}>
-              {saving ? "Applying…" : "Apply"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={revert} disabled={!dirty || saving}>
-              Revert
-            </Button>
-          </>
-        }
+        actions={<ApplyRevert dirty={dirty} saving={saving} onApply={apply} onRevert={revert} />}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

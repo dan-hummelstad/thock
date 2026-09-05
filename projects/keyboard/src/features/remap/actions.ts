@@ -1,6 +1,6 @@
-import type { KeyAction } from "@/protocol/keymap"
-import { HID_USAGES } from "@/protocol/keynames"
-import { PROFILE_COUNT } from "@/state/device"
+import type { KeyAction } from "../../protocol/keymap"
+import { HID_USAGES } from "../../protocol/keynames"
+import { PROFILE_COUNT } from "../../state/device"
 
 export interface ActionChip {
   label: string

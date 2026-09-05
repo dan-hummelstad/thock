@@ -1,9 +1,9 @@
 import { useEffect, type ReactNode } from "react"
-import type { KeyboardDevice } from "@/protocol/types"
-import { LAYOUT } from "@/protocol/matrix"
-import { KeyboardView } from "@/components/keyboard/KeyboardView"
-import { cn } from "@/lib/utils"
-import { useSelection, setSelectionUniverse } from "@/state/selection"
+import type { KeyboardDevice } from "../../protocol/types"
+import { LAYOUT } from "../../protocol/matrix"
+import { KeyboardView } from "../keyboard/KeyboardView"
+import { cn } from "@thock/ui/lib/utils"
+import { useSelection, setSelectionUniverse } from "../../state/selection"
 import { useKeyboardOverlayValue } from "./keyboard-overlay"
 
 interface KeyboardStageProps {

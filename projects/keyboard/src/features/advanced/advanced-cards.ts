@@ -1,6 +1,6 @@
 import type { ComponentType } from "react"
 import { Layers, Swords, Timer, ToggleLeft } from "lucide-react"
-import type { KeyMode } from "@/protocol/types"
+import type { KeyMode } from "../../protocol/types"
 
 export interface AdvancedCard {
   id: "snap" | "dks" | "mt" | "toggle"

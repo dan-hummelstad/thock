@@ -1,4 +1,4 @@
-import type { KeyHallSettings } from "@/protocol/types"
+import type { KeyHallSettings } from "../../protocol/types"
 
 /** mm readout for a travel value. Quick Settings rounds to 2dp for a terser card; everywhere else uses 3dp. */
 export function formatMm(v: number, decimals = 3): string {

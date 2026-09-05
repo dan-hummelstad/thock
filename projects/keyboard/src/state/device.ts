@@ -1,8 +1,10 @@
 import { useSyncExternalStore } from "react"
-import type { KeyboardDevice, Transport } from "@/protocol/types"
-import { connectHid } from "@/protocol/hid"
-import { mockTransport } from "@/protocol/mock"
-import { openDevice } from "@/protocol/device"
+import type { KeyboardDevice, Transport } from "../protocol/types"
+import { connectHid } from "../protocol/hid"
+import { mockTransport } from "../protocol/mock"
+import { openDevice } from "../protocol/device"
+import { errorMessage } from "@thock/ui/lib/utils"
+import { resetNav } from "./nav"
 
 export type DeviceStatus = "idle" | "connecting" | "connected" | "error"
 
@@ -27,6 +29,7 @@ function set(patch: Partial<DeviceState>) {
 }
 
 async function open(getTransport: () => Promise<Transport>, isMock: boolean) {
+  await disconnect()
   set({ status: "connecting", error: undefined })
   try {
     const t = await getTransport()
@@ -34,7 +37,7 @@ async function open(getTransport: () => Promise<Transport>, isMock: boolean) {
     transport = t
     set({ device, status: "connected", isMock })
   } catch (err) {
-    set({ status: "error", error: err instanceof Error ? err.message : String(err) })
+    set({ status: "error", error: errorMessage(err) })
   }
 }
 
@@ -55,11 +58,7 @@ async function disconnect() {
   await transport?.close()
   transport = null
   set({ device: null, status: "idle", isMock: false, error: undefined })
-}
-
-// ponytail: ?mock=1 auto-connects at import time so `pnpm dev` needs no click to demo the UI
-if (typeof location !== "undefined" && new URLSearchParams(location.search).get("mock") === "1") {
-  connectMock()
+  resetNav()
 }
 
 function subscribe(onChange: () => void) {

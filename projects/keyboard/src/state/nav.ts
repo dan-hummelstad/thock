@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react"
+import { createNav } from "@thock/ui/lib/nav"
 import { clearSelection } from "./selection"
 
 export type Page =
@@ -26,25 +26,4 @@ const RAIL_OF: Record<Page, Rail> = {
   help: "help",
 }
 
-let page: Page = "quick"
-const listeners = new Set<() => void>()
-
-function go(p: Page) {
-  page = p
-  clearSelection()
-  for (const fn of listeners) fn()
-}
-
-function subscribe(onChange: () => void) {
-  listeners.add(onChange)
-  return () => listeners.delete(onChange)
-}
-
-function getSnapshot() {
-  return page
-}
-
-export function useNav() {
-  const p = useSyncExternalStore(subscribe, getSnapshot)
-  return { rail: RAIL_OF[p], page: p, go }
-}
+export const { useNav, resetNav } = createNav<Page, Rail>(RAIL_OF, "quick", clearSelection)

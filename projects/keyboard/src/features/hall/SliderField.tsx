@@ -1,4 +1,4 @@
-import { Slider } from "@/components/ui/slider"
+import { Slider } from "@thock/ui/components/ui/slider"
 
 /** Labelled slider with a formatted value readout. Shared by the hall-effect pages (per-target "mixed"
  * state via `mixed`) and Advanced Keys' ModeFields (per-key mode fields, no mixed state). */

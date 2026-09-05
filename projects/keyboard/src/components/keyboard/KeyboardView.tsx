@@ -1,8 +1,8 @@
 import type { CSSProperties, ReactNode } from "react"
-import type { Model, MatrixEntry } from "@/protocol/types"
-import { LAYOUT } from "@/protocol/matrix"
-import { keyName } from "@/protocol/keynames"
-import { cn } from "@/lib/utils"
+import type { Model, MatrixEntry } from "../../protocol/types"
+import { LAYOUT } from "../../protocol/matrix"
+import { keyName } from "../../protocol/keynames"
+import { cn } from "@thock/ui/lib/utils"
 
 interface LayoutKey {
   slot: number

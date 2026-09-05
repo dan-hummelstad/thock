@@ -1,10 +1,11 @@
 import { ChevronDownIcon, ChevronUpIcon, XIcon } from "lucide-react"
 
-import type { MacroEvent } from "@/protocol/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type { MacroEvent } from "../../protocol/types"
+import { Button } from "@thock/ui/components/ui/button"
+import { Input } from "@thock/ui/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@thock/ui/components/ui/select"
 import { KeyPicker } from "./KeyPicker"
+import { defaultEvent } from "./macro-utils"
 
 const MOUSE_BUTTONS: { value: number; name: string }[] = [
   { value: 240, name: "Left" },
@@ -15,19 +16,6 @@ const MOUSE_BUTTONS: { value: number; name: string }[] = [
 ]
 
 const EVENT_TYPES: MacroEvent["type"][] = ["keyboard", "mouse_button", "mouse_move", "delay"]
-
-export function defaultEvent(type: MacroEvent["type"]): MacroEvent {
-  switch (type) {
-    case "keyboard":
-      return { type, action: "down", value: 0 }
-    case "mouse_button":
-      return { type, action: "down", value: 240 }
-    case "mouse_move":
-      return { type, dx: 0, dy: 0 }
-    case "delay":
-      return { type, value: 10 }
-  }
-}
 
 export function EventRow({
   ev,

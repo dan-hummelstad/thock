@@ -1,5 +1,5 @@
 import { BookOpen, CircleQuestionMark, Globe, TriangleAlert } from "lucide-react"
-import { SettingCard } from "@/components/shell/SettingCard"
+import { SettingCard } from "@thock/ui/shell/SettingCard"
 
 export default function HelpPage() {
   return (

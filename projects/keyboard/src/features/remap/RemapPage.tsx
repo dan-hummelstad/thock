@@ -2,22 +2,22 @@ import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { ArrowLeftRight, LayoutGrid, PlayCircle, RotateCcw, Search, Settings2, Type, Users, Volume2 } from "lucide-react"
 
-import { encodeEntry, type KeyAction } from "@/protocol/keymap"
-import { keyName } from "@/protocol/keynames"
-import type { KeyboardDevice, MatrixEntry } from "@/protocol/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Toggle } from "@/components/ui/toggle"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { KeyboardStage } from "@/components/shell/KeyboardStage"
-import { useKeyboardOverlay, type KeyboardLayer } from "@/components/shell/keyboard-overlay"
-import { PageHeader } from "@/components/shell/PageHeader"
-import { SettingCard } from "@/components/shell/SettingCard"
-import { KeyCaptureBox } from "@/components/keyboard/KeyCaptureBox"
-import { useSelection } from "@/state/selection"
-import { diffIndices, plural, withBusy } from "@/lib/utils"
+import { encodeEntry, type KeyAction } from "../../protocol/keymap"
+import { keyName } from "../../protocol/keynames"
+import type { KeyboardDevice, MatrixEntry } from "../../protocol/types"
+import { Button } from "@thock/ui/components/ui/button"
+import { Input } from "@thock/ui/components/ui/input"
+import { Toggle } from "@thock/ui/components/ui/toggle"
+import { ToggleGroup, ToggleGroupItem } from "@thock/ui/components/ui/toggle-group"
+import { KeyboardStage } from "../../components/shell/KeyboardStage"
+import { useKeyboardOverlay, type KeyboardLayer } from "../../components/shell/keyboard-overlay"
+import { KeyPageHeader } from "../../components/shell/KeyPageHeader"
+import { SettingCard } from "@thock/ui/shell/SettingCard"
+import { KeyCaptureBox } from "../../components/keyboard/KeyCaptureBox"
+import { useSelection } from "../../state/selection"
+import { diffIndices, plural, withBusy } from "@thock/ui/lib/utils"
 import { CategorySection } from "./CategorySection"
-import MacroDialog from "@/features/macro/MacroDialog"
+import MacroDialog from "../macro/MacroDialog"
 import { BASIC_CHIPS, EXTENDED_CHIPS, FUNCTION_CHIPS, MACRO_CHIPS, MEDIA_CHIPS, PROFILE_CHIPS, type ActionChip } from "./actions"
 
 type LayerId = "main" | "fn"
@@ -165,11 +165,10 @@ export default function RemapPage({ device, profile }: { device: KeyboardDevice;
 
   return (
     <KeyboardStage device={device}>
-      <PageHeader
+      <KeyPageHeader
         title="Remap"
         icon={ArrowLeftRight}
         help="Select one or more keys on the board, then click an action below to assign it."
-        selection
         subject="key bindings"
         actions={
           <>

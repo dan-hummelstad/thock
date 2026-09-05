@@ -1,7 +1,7 @@
 import type { KeyboardEvent } from "react"
 import { Keyboard as KeyboardIcon } from "lucide-react"
-import { HID_USAGES } from "@/protocol/keynames"
-import { cn } from "@/lib/utils"
+import { HID_USAGES } from "../../protocol/keynames"
+import { cn } from "@thock/ui/lib/utils"
 
 /** "Press a key…" capture strip: resolves a DOM keydown to a HID usage via its `code`. Shared by
  * Remap's direct-assign box and the macro KeyPicker's popover. */

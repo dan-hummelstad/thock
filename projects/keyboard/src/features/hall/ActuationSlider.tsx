@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Cpu } from "lucide-react"
-import { Slider } from "@/components/ui/slider"
-import { Input } from "@/components/ui/input"
+import { Slider } from "@thock/ui/components/ui/slider"
+import { Input } from "@thock/ui/components/ui/input"
 
 interface ActuationSliderProps {
   value: number

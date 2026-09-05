@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react"
 import { Activity, ArrowDownToLine, Ruler } from "lucide-react"
-import type { KeyboardDevice, KeyHallSettings } from "@/protocol/types"
-import { keyName } from "@/protocol/keynames"
-import { KeyboardStage } from "@/components/shell/KeyboardStage"
-import { useKeyboardOverlay } from "@/components/shell/keyboard-overlay"
-import { PageHeader } from "@/components/shell/PageHeader"
-import { SettingCard } from "@/components/shell/SettingCard"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { useSelection } from "@/state/selection"
-import { plural } from "@/lib/utils"
-import { useHallDraft } from "@/features/hall/useHallDraft"
-import { ActuationSlider } from "@/features/hall/ActuationSlider"
-import { SliderField } from "@/features/hall/SliderField"
-import { commonValue, formatMm as mm, targetValue } from "@/features/hall/hall-utils"
-import { DEAD_ZONE_RANGE, TRAVEL_RANGE } from "@/features/hall/constants"
+import type { KeyboardDevice, KeyHallSettings } from "../../protocol/types"
+import { keyName } from "../../protocol/keynames"
+import { KeyboardStage } from "../../components/shell/KeyboardStage"
+import { useKeyboardOverlay } from "../../components/shell/keyboard-overlay"
+import { KeyPageHeader } from "../../components/shell/KeyPageHeader"
+import { SettingCard } from "@thock/ui/shell/SettingCard"
+import { ApplyRevert } from "@thock/ui/shell/ApplyRevert"
+import { Switch } from "@thock/ui/components/ui/switch"
+import { useSelection } from "../../state/selection"
+import { plural } from "@thock/ui/lib/utils"
+import { useHallDraft } from "../hall/useHallDraft"
+import { ActuationSlider } from "../hall/ActuationSlider"
+import { SliderField } from "../hall/SliderField"
+import { commonValue, formatMm as mm, targetValue } from "../hall/hall-utils"
+import { DEAD_ZONE_RANGE, TRAVEL_RANGE } from "../hall/constants"
 
 interface ActuationPageProps {
   device: KeyboardDevice
@@ -28,10 +28,9 @@ export default function ActuationPage({ device }: ActuationPageProps) {
   const [liveTravel, setLiveTravel] = useState<number[] | null>(null)
 
   useEffect(() => {
-    if (!liveOn) {
-      setLiveTravel(null)
-      return
-    }
+    // `liveTravel` itself doesn't need clearing here — every read of it below is already gated on
+    // `liveOn`, so stale data sitting unused in state while polling is off is harmless.
+    if (!liveOn) return
     let cancelled = false
     // ponytail: one read is 4 HID round trips, which can outlast the 100 ms tick on real hardware —
     // skip a tick while one is in flight rather than queueing reads up faster than they drain.
@@ -107,21 +106,11 @@ export default function ActuationPage({ device }: ActuationPageProps) {
 
   return (
     <KeyboardStage device={device}>
-      <PageHeader
+      <KeyPageHeader
         title="Actuation Point"
         icon={ArrowDownToLine}
         help="The distance a key must travel before it registers a keypress."
-        selection
-        actions={
-          <>
-            <Button size="sm" onClick={apply} disabled={!dirty || saving}>
-              {saving ? "Applying…" : "Apply"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={revert} disabled={!dirty || saving}>
-              Revert
-            </Button>
-          </>
-        }
+        actions={<ApplyRevert dirty={dirty} saving={saving} onApply={apply} onRevert={revert} />}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

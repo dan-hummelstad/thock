@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react"
 import { ChevronsUpDownIcon } from "lucide-react"
 
-import { cn } from "@/lib/utils"
-import { HID_USAGES } from "@/protocol/keynames"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { KeyCaptureBox } from "@/components/keyboard/KeyCaptureBox"
+import { cn } from "@thock/ui/lib/utils"
+import { HID_USAGES } from "../../protocol/keynames"
+import { Button } from "@thock/ui/components/ui/button"
+import { Input } from "@thock/ui/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@thock/ui/components/ui/popover"
+import { ScrollArea } from "@thock/ui/components/ui/scroll-area"
+import { KeyCaptureBox } from "../../components/keyboard/KeyCaptureBox"
 
 type Usage = { usage: number; name: string; code: string }
 

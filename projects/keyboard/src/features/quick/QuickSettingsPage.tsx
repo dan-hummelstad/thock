@@ -1,20 +1,20 @@
 import { useState } from "react"
 import { ArrowDownToLine, Cpu, Repeat } from "lucide-react"
-import type { KeyboardDevice, KeyHallSettings } from "@/protocol/types"
-import { KeyboardStage } from "@/components/shell/KeyboardStage"
-import { PageHeader } from "@/components/shell/PageHeader"
-import { SettingCard } from "@/components/shell/SettingCard"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useSelection } from "@/state/selection"
-import { plural } from "@/lib/utils"
-import { useHallDraft } from "@/features/hall/useHallDraft"
-import { ActuationSlider } from "@/features/hall/ActuationSlider"
-import { SliderField } from "@/features/hall/SliderField"
-import { commonValue, formatMm, targetValue } from "@/features/hall/hall-utils"
-import { RT_RANGE, SWITCH_TYPES, TRAVEL_RANGE } from "@/features/hall/constants"
+import type { KeyboardDevice, KeyHallSettings } from "../../protocol/types"
+import { KeyboardStage } from "../../components/shell/KeyboardStage"
+import { KeyPageHeader } from "../../components/shell/KeyPageHeader"
+import { SettingCard } from "@thock/ui/shell/SettingCard"
+import { ApplyRevert } from "@thock/ui/shell/ApplyRevert"
+import { Switch } from "@thock/ui/components/ui/switch"
+import { Label } from "@thock/ui/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@thock/ui/components/ui/select"
+import { useSelection } from "../../state/selection"
+import { plural } from "@thock/ui/lib/utils"
+import { useHallDraft } from "../hall/useHallDraft"
+import { ActuationSlider } from "../hall/ActuationSlider"
+import { SliderField } from "../hall/SliderField"
+import { commonValue, formatMm, targetValue } from "../hall/hall-utils"
+import { RT_RANGE, SWITCH_TYPES, TRAVEL_RANGE } from "../hall/constants"
 
 const mm = (v: number) => formatMm(v, 2)
 
@@ -53,22 +53,12 @@ export default function QuickSettingsPage({ device }: QuickSettingsPageProps) {
 
   return (
     <KeyboardStage device={device}>
-      <PageHeader
+      <KeyPageHeader
         title="Quick Settings"
         icon={ArrowDownToLine}
         help="Actuation point, rapid trigger and switch type for the selected keys."
         subject="Actuation Point and Rapid Trigger"
-        selection
-        actions={
-          <>
-            <Button size="sm" onClick={apply} disabled={!dirty || saving}>
-              {saving ? "Applying…" : "Apply"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={revert} disabled={!dirty || saving}>
-              Revert
-            </Button>
-          </>
-        }
+        actions={<ApplyRevert dirty={dirty} saving={saving} onApply={apply} onRevert={revert} />}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

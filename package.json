@@ -2,9 +2,13 @@
   "name": "thock",
   "private": true,
   "scripts": {
-    "build": "pnpm --filter @thock/keyboard build",
-    "dev": "pnpm --filter @thock/keyboard dev",
-    "test": "pnpm --filter @thock/keyboard test",
+    "build": "pnpm --filter @thock/web build",
+    "dev": "pnpm --filter @thock/web dev",
+    "dev:keyboard": "pnpm --filter @thock/web dev --open /?mock=keyboard",
+    "dev:mouse": "pnpm --filter @thock/web dev --open /?mock=mouse",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
     "release": "pnpm build && wrangler deploy",
     "preview": "pnpm build && wrangler dev"
   },

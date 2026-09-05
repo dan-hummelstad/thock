@@ -1,7 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { plural } from "@/lib/utils"
+import { Card, CardContent, CardHeader, CardTitle } from "@thock/ui/components/ui/card"
+import { Input } from "@thock/ui/components/ui/input"
+import { Label } from "@thock/ui/components/ui/label"
+import { plural } from "@thock/ui/lib/utils"
 import { PRESET_COLOURS, hexToRgb, rgbToHex } from "./rgb-utils"
 
 /** RGB colour block: hex swatch, R/G/B numeric inputs, and the 7 vendor COMMONCOLOR presets.

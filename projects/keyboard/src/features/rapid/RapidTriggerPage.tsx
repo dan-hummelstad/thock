@@ -1,19 +1,19 @@
 import { useMemo, useState, type CSSProperties } from "react"
 import { Repeat } from "lucide-react"
-import type { KeyboardDevice, KeyHallSettings } from "@/protocol/types"
-import { KeyboardStage } from "@/components/shell/KeyboardStage"
-import { useKeyboardOverlay } from "@/components/shell/keyboard-overlay"
-import { PageHeader } from "@/components/shell/PageHeader"
-import { SettingCard } from "@/components/shell/SettingCard"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { useSelection } from "@/state/selection"
-import { plural } from "@/lib/utils"
-import { useHallDraft } from "@/features/hall/useHallDraft"
-import { SliderField } from "@/features/hall/SliderField"
-import { commonValue, formatMm as mm, targetValue } from "@/features/hall/hall-utils"
-import { RT_RANGE } from "@/features/hall/constants"
+import type { KeyboardDevice, KeyHallSettings } from "../../protocol/types"
+import { KeyboardStage } from "../../components/shell/KeyboardStage"
+import { useKeyboardOverlay } from "../../components/shell/keyboard-overlay"
+import { KeyPageHeader } from "../../components/shell/KeyPageHeader"
+import { SettingCard } from "@thock/ui/shell/SettingCard"
+import { ApplyRevert } from "@thock/ui/shell/ApplyRevert"
+import { Switch } from "@thock/ui/components/ui/switch"
+import { Label } from "@thock/ui/components/ui/label"
+import { useSelection } from "../../state/selection"
+import { plural } from "@thock/ui/lib/utils"
+import { useHallDraft } from "../hall/useHallDraft"
+import { SliderField } from "../hall/SliderField"
+import { commonValue, formatMm as mm, targetValue } from "../hall/hall-utils"
+import { RT_RANGE } from "../hall/constants"
 
 interface RapidTriggerPageProps {
   device: KeyboardDevice
@@ -57,21 +57,11 @@ export default function RapidTriggerPage({ device }: RapidTriggerPageProps) {
 
   return (
     <KeyboardStage device={device}>
-      <PageHeader
+      <KeyPageHeader
         title="Rapid Trigger"
         icon={Repeat}
         help="Rapid Trigger dynamically actuates and resets a key based on your intention to press or release it."
-        selection
-        actions={
-          <>
-            <Button size="sm" onClick={apply} disabled={!dirty || saving}>
-              {saving ? "Applying…" : "Apply"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={revert} disabled={!dirty || saving}>
-              Revert
-            </Button>
-          </>
-        }
+        actions={<ApplyRevert dirty={dirty} saving={saving} onApply={apply} onRevert={revert} />}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

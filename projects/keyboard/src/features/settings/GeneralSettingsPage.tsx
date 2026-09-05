@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import type { KeyboardDevice, KbOptions, SleepTimers } from "@/protocol/types"
-import { REPORT_RATES, type ReportRate } from "@/protocol/settings"
-import { Separator } from "@/components/ui/separator"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { cn, errorMessage, withToast } from "@/lib/utils"
+import type { KeyboardDevice, KbOptions, SleepTimers } from "../../protocol/types"
+import { REPORT_RATES, type ReportRate } from "../../protocol/settings"
+import { Separator } from "@thock/ui/components/ui/separator"
+import { Input } from "@thock/ui/components/ui/input"
+import { Label } from "@thock/ui/components/ui/label"
+import { Switch } from "@thock/ui/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@thock/ui/components/ui/select"
+import { Slider } from "@thock/ui/components/ui/slider"
+import { RadioGroup, RadioGroupItem } from "@thock/ui/components/ui/radio-group"
+import { cn, errorMessage, withToast } from "@thock/ui/lib/utils"
 
 const OS_ITEMS: { value: KbOptions["os"]; label: string }[] = [
   { value: "win", label: "Windows" },
@@ -32,7 +32,6 @@ export default function GeneralSettingsPage({ device }: GeneralSettingsPageProps
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(true)
     Promise.all([device.readReportRate(), device.readDebounce(), device.readKbOptions(), device.readSleepTimers()])
       .then(([rr, db, kb, st]) => {
         setReportRate(rr)
