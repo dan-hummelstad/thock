@@ -1,0 +1,6 @@
+<!-- Buttons: a button map quartered, the bound button filled. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+<rect x="1.75" y="1.75" width="12.5" height="12.5"/>
+<rect x="1.75" y="1.75" width="6.25" height="6.25" fill="currentColor"/>
+<path d="M8 1.75v12.5M1.75 8h12.5"/>
+</svg>

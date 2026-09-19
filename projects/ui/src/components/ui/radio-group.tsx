@@ -12,12 +12,12 @@ function RadioGroupItem({ className, ...props }: Radio.Root.Props) {
     <Radio.Root
       data-slot="radio-group-item"
       className={cn(
-        "flex size-4 shrink-0 items-center justify-center rounded-full border border-input outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary data-disabled:cursor-not-allowed data-disabled:opacity-50",
+        "flex size-4 shrink-0 items-center justify-center border border-input outline-none transition-colors data-checked:border-primary data-disabled:cursor-not-allowed data-disabled:opacity-50",
         className
       )}
       {...props}
     >
-      <Radio.Indicator data-slot="radio-group-indicator" className="size-2 rounded-full bg-primary" />
+      <Radio.Indicator data-slot="radio-group-indicator" className="size-2 bg-primary" />
     </Radio.Root>
   )
 }

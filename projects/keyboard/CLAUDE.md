@@ -35,7 +35,7 @@ pnpm typecheck    # tsc -b --noEmit
   keyboard shared by all areas. `src/components/shell/` — the keyboard-specific shell pieces
   (`KeyboardStage`, `keyboard-overlay`, `KeyPageHeader` — wraps `@thock/ui`'s `PageHeader` with the
   "select keys first" hint + Select all/Discard selection); the device-agnostic shell primitives
-  (IconRail, NavPanel, TopBar, PageHeader, SettingCard, ApplyRevert) live in `@thock/ui`.
+  (CommandBar, IndexList, StatusBar, Stage, PageHeader, SettingCard, ApplyRevert) live in `@thock/ui`.
 
 ## Rules
 - Writes to the keyboard only happen from an explicit user action (Apply). Reads are free.

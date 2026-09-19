@@ -44,23 +44,25 @@ export function KeyboardView({
       {keys.map((k) => {
         const isSelected = selected?.has(k.slot) ?? false
         const label = keyLabel ? keyLabel(k.slot) : (matrix[k.slot] ? keyName(matrix[k.slot]) : k.label)
+        // A page opts a key tile into the 3px heatmap strip just by putting `--bar` in its keyStyle —
+        // no new prop, and pages that don't (RGB, Remap, Advanced Keys) render a bare tile (§8 A5).
+        const style = keyStyle?.(k.slot)
         return (
           <button
             key={k.slot}
             type="button"
             onClick={(e) => onSelect?.(k.slot, e.shiftKey || e.metaKey || e.ctrlKey)}
             className={cn(
-              "absolute flex items-center justify-center overflow-hidden rounded-md border text-[10px] font-medium transition-colors",
-              isSelected
-                ? "border-primary bg-primary/25 text-foreground"
-                : "border-border bg-secondary text-secondary-foreground hover:bg-muted"
+              "label-mono absolute flex items-center justify-center overflow-hidden border transition-colors duration-120",
+              style && "--bar" in style && "value-bar",
+              isSelected ? "border-acid bg-acid text-black" : "border-border bg-panel text-foreground hover:bg-hover"
             )}
             style={{
               left: `calc(${(k.x / boardW) * 100}% + 1.5px)`,
               top: `calc(${(k.y / boardH) * 100}% + 1.5px)`,
               width: `calc(${(k.w / boardW) * 100}% - 3px)`,
               height: `calc(${(k.h / boardH) * 100}% - 3px)`,
-              ...keyStyle?.(k.slot),
+              ...style,
             }}
           >
             {label}

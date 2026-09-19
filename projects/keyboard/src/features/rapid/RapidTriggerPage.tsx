@@ -27,16 +27,16 @@ export default function RapidTriggerPage({ device }: RapidTriggerPageProps) {
 
   const keyBySlot = useMemo(() => new Map((draft ?? []).map((k) => [k.slot, k])), [draft])
 
+  // RT-on keys get a *cobalt* bar, never acid: on this board "RT is on here" and "actuation is deep
+  // here" must never be the same colour (§4a). Flat, not graded — RT is a boolean.
   function keyStyle(slot: number): CSSProperties {
-    const k = keyBySlot.get(slot)
-    if (k?.rapidTrigger) return { boxShadow: "inset 0 0 0 999px color-mix(in oklch, var(--color-primary) 18%, transparent)" }
-    return {}
+    return keyBySlot.get(slot)?.rapidTrigger ? ({ "--bar": "var(--color-cobalt-text)" } as CSSProperties) : {}
   }
 
   useKeyboardOverlay({ keyStyle }, [keyBySlot])
 
   if (!draft) {
-    return <div className="p-6 text-sm text-muted-foreground">{loading ? "Reading from keyboard…" : "No data."}</div>
+    return <div className="label-mono p-6 text-muted-foreground">{loading ? "Reading from keyboard…" : "No data."}</div>
   }
 
   const step = 1 / device.info.travelMultiplier
@@ -56,7 +56,7 @@ export default function RapidTriggerPage({ device }: RapidTriggerPageProps) {
   }
 
   return (
-    <KeyboardStage device={device}>
+    <KeyboardStage device={device} count={`${enabledCount}/${draft.length} RT ON`}>
       <KeyPageHeader
         title="Rapid Trigger"
         icon={Repeat}
@@ -69,6 +69,7 @@ export default function RapidTriggerPage({ device }: RapidTriggerPageProps) {
           title="Enable Rapid Trigger"
           icon={Repeat}
           description="Rapid Trigger starts and ends after the actuation point, tracking every direction change."
+          dirty={dirty}
           action={
             <Switch
               checked={rapidTrigger.value ?? false}
@@ -77,14 +78,14 @@ export default function RapidTriggerPage({ device }: RapidTriggerPageProps) {
             />
           }
         >
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <p className="label-mono text-muted-foreground">
             Enabled on <span className="text-foreground">{enabledCount}</span> key{plural(enabledCount)}
           </p>
         </SettingCard>
 
-        <SettingCard title="Rapid Trigger Sensitivity" icon={Repeat}>
+        <SettingCard title="Rapid Trigger Sensitivity" icon={Repeat} dirty={dirty}>
           <div className="flex items-center justify-between">
-            <Label htmlFor="rt-split">Split sensitivity</Label>
+            <Label htmlFor="rt-split">Split sensitivity [{splitSensitivity ? "ON" : "OFF"}]</Label>
             <Switch id="rt-split" checked={splitSensitivity} disabled={noSelection} onCheckedChange={setSplitSensitivity} />
           </div>
           {splitSensitivity ? (
@@ -122,9 +123,9 @@ export default function RapidTriggerPage({ device }: RapidTriggerPageProps) {
               onChange={(v) => applyPatch({ rtPressTravel: v, rtLiftTravel: v })}
             />
           )}
-          <div className="-mt-2 flex justify-between text-[10px] font-medium text-muted-foreground">
-            <span>HIGH</span>
-            <span>LOW</span>
+          <div className="label-mono -mt-3 flex justify-between text-muted-foreground/60">
+            <span>High</span>
+            <span>Low</span>
           </div>
         </SettingCard>
       </div>

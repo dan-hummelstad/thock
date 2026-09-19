@@ -1,0 +1,6 @@
+<!-- Mouse: angular top-down shell, button seam and a solid scroll block. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+<path d="M6 1.5h4l2.5 3.5v6.5l-2 3h-5l-2-3V5Z"/>
+<path d="M3.5 8.25h9"/>
+<rect x="7.25" y="3.25" width="1.5" height="3.5" fill="currentColor" stroke="none"/>
+</svg>

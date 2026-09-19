@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
-import { Crosshair, Gauge, LayoutGrid, Mouse, MousePointerClick, Radio, Settings, Sparkles, SlidersHorizontal, CircleQuestionMark } from "lucide-react"
-import { IconRail, type IconRailItem } from "@thock/ui/shell/IconRail"
-import { NavPanel, type NavGroup } from "@thock/ui/shell/NavPanel"
-import { TopBar } from "@thock/ui/shell/TopBar"
+import { Crosshair, Gauge, LayoutGrid, Mouse, MousePointerClick, Radio, Sparkles, SlidersHorizontal, CircleQuestionMark } from "lucide-react"
+import { CommandBar } from "@thock/ui/shell/CommandBar"
+import { IndexList, type NavGroup } from "@thock/ui/shell/IndexList"
+import { StatusBar } from "@thock/ui/shell/StatusBar"
 import { ConnectGate } from "@thock/ui/shell/ConnectGate"
 import { useConnectOnce } from "@thock/ui/lib/useConnectOnce"
 import { useDevice } from "./state/device"
@@ -18,11 +18,15 @@ import LightPage from "./features/light/LightPage"
 import GeneralSettingsPage from "./features/settings/GeneralSettingsPage"
 import HelpPage from "./features/help/HelpPage"
 
-const RAIL_ITEMS: IconRailItem<Rail>[] = [
-  { id: "mouse", label: "Mouse", icon: Mouse },
-  { id: "settings", label: "Settings", icon: Settings },
-  { id: "help", label: "Help", icon: CircleQuestionMark },
+// Q on the first tab, E on the last — the Vault's tab strip flanks itself with those two keycaps.
+const TABS: { id: Rail; label: string; hint?: string }[] = [
+  { id: "mouse", label: "MOUSE", hint: "Q" },
+  { id: "settings", label: "SETTINGS" },
+  { id: "help", label: "HELP", hint: "E" },
 ]
+
+// No Esc/⌘A: the mouse has no key selection to discard or select.
+const HINTS = [{ key: "Enter", label: "APPLY" }]
 
 const RAIL_HOME: Record<Rail, Page> = { mouse: "quick", settings: "settings", help: "help" }
 
@@ -50,12 +54,6 @@ const NAV_GROUPS: Record<Rail, NavGroup<Page>[]> = {
   help: [{ label: "", items: [{ page: "help", label: "Help", icon: CircleQuestionMark }] }],
 }
 
-const RAIL_TITLE: Record<Rail, string> = {
-  mouse: "Mouse Configuration",
-  settings: "Settings",
-  help: "Help",
-}
-
 interface MouseAppProps {
   mode: "connect" | "demo"
   onExit: () => void
@@ -79,6 +77,21 @@ export function MouseApp({ mode, onExit }: MouseAppProps) {
       .catch(() => {})
   }, [device])
 
+  // The StatusBar keycap hint, bound (§8 A2). ponytail: Enter clicks whatever [data-slot=apply] is on
+  // screen instead of lifting every page's apply into a store — one Apply per page, which is the rule
+  // anyway. Ceiling: two Apply buttons on one page and the first one wins.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null
+      if (t?.closest("input, textarea, select, [contenteditable]")) return
+      if (e.key === "Enter" && t?.tagName !== "BUTTON") {
+        document.querySelector<HTMLButtonElement>("[data-slot=apply]")?.click()
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
+
   async function handleProfileChange(p: number) {
     if (!device) return
     setProfile(p)
@@ -98,30 +111,25 @@ export function MouseApp({ mode, onExit }: MouseAppProps) {
   return (
     <ConnectGate status={status} error={error} onRetry={() => (mode === "demo" ? connectMock() : connect())} onBack={handleDisconnect}>
       {device && config && (
-        <div className="flex h-screen">
-          <IconRail items={RAIL_ITEMS} active={rail} onSelect={(id) => go(RAIL_HOME[id])} onHome={handleDisconnect} />
-          <NavPanel
-            title={RAIL_TITLE[rail]}
-            groups={NAV_GROUPS[rail]}
-            page={page}
-            onGo={go}
+        <div className="flex h-screen flex-col">
+          <CommandBar
             device={{
               icon: Mouse,
-              status: isMock ? "Demo device" : "Connected",
+              status: isMock ? "DEMO" : "CONNECTED",
               name: `${device.info.name} · fw ${device.info.mouseVersion}${device.info.dongleVersion ? ` · dongle ${device.info.dongleVersion}` : ""}`,
             }}
-            footer="thock/mouse v0.1"
+            profile={profile}
+            profileCount={PROFILE_COUNT}
+            onProfileChange={handleProfileChange}
+            tabs={TABS}
+            activeTab={rail}
+            onTab={(id) => go(RAIL_HOME[id])}
+            isMock={isMock}
+            onDisconnect={handleDisconnect}
           />
-          <div className="flex min-w-0 flex-1 flex-col">
-            <TopBar
-              profile={profile}
-              profileCount={PROFILE_COUNT}
-              onProfileChange={handleProfileChange}
-              isMock={isMock}
-              onDisconnect={handleDisconnect}
-              icon={Mouse}
-            />
-            <main className="flex-1 overflow-y-auto p-6">
+          <div className="flex min-h-0 flex-1">
+            <IndexList groups={NAV_GROUPS[rail]} page={page} onGo={go} />
+            <main className="min-w-0 flex-1 overflow-y-auto p-6">
               {page === "quick" && <QuickSettingsPage device={device} config={config} write={write} />}
               {page === "profiles" && <ProfilesPage device={device} profile={profile} onProfileChange={handleProfileChange} onRestore={refresh} />}
               {page === "dpi" && <DpiPage config={config} write={write} />}
@@ -133,6 +141,7 @@ export function MouseApp({ mode, onExit }: MouseAppProps) {
               {page === "help" && <HelpPage />}
             </main>
           </div>
+          <StatusBar hints={HINTS} link={isMock ? "LINK: DEMO" : "LINK: OK"} version="thock/mouse v0.1" />
         </div>
       )}
     </ConnectGate>

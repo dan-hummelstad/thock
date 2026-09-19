@@ -8,7 +8,7 @@ import { Switch } from "@thock/ui/components/ui/switch"
 import { Slider } from "@thock/ui/components/ui/slider"
 import { Label } from "@thock/ui/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@thock/ui/components/ui/select"
-import { withToast } from "@thock/ui/lib/utils"
+import { cn, withToast } from "@thock/ui/lib/utils"
 
 const DEFAULT_POWER_SAVE_PERCENT = 20
 
@@ -69,9 +69,12 @@ export default function GeneralSettingsPage({ device, config, patch, write }: Ge
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
-      <PageHeader title="Settings" icon={Timer} help="Sleep timer, wireless range, low-battery power saving and debounce." />
+      <PageHeader title="Settings" icon={Timer} index={1} help="Sleep timer, wireless range, low-battery power saving and debounce." />
 
-      <SettingCard title="Sleep timer" icon={Timer} description="How long the mouse waits idle before entering sleep mode (wireless).">
+      {/* ponytail: the `[n]` prefixes are literal, not `index-prefix` — SettingCard has no index prop and
+          four hand-numbered strings beat a new one. Long distance is last *because* it's conditional, so
+          the numbers stay contiguous on a wired mouse. Ceiling: a fifth card means renumbering by hand. */}
+      <SettingCard title="[1] Sleep timer" icon={Timer} description="How long the mouse waits idle before entering sleep mode (wireless).">
         <Select value={config.sleepTime} onValueChange={(v: number | null) => v != null && handleSleepTime(v)} items={TIMER_OPTIONS}>
           <SelectTrigger className="w-40">
             <SelectValue />
@@ -86,25 +89,19 @@ export default function GeneralSettingsPage({ device, config, patch, write }: Ge
         </Select>
       </SettingCard>
 
-      {device.info.connection === "dongle" && (
-        <SettingCard title="Long distance mode" icon={Radio} description="Improves range at the cost of battery life — turn off when the dongle is close to the mouse.">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="long-distance">Enable long distance mode</Label>
-            <Switch id="long-distance" checked={config.longDistance} onCheckedChange={handleLongDistance} />
-          </div>
-        </SettingCard>
-      )}
-
-      <SettingCard title="Low battery power save" icon={BatteryLow} description="Reduce polling and lighting once the battery drops below this level (wireless).">
-        <div className="flex items-center justify-between">
+      <SettingCard title="[2] Power save" icon={BatteryLow} description="Reduce polling and lighting once the battery drops below this level (wireless).">
+        <div className="flex items-center justify-between gap-2">
           <Label htmlFor="power-save-enable">Enable</Label>
-          <Switch id="power-save-enable" checked={powerSave > 0} onCheckedChange={togglePowerSave} />
+          <div className="flex items-center gap-2">
+            <span className={cn("label-mono", powerSave > 0 ? "text-foreground" : "text-muted-foreground")}>{powerSave > 0 ? "[ON]" : "[OFF]"}</span>
+            <Switch id="power-save-enable" checked={powerSave > 0} onCheckedChange={togglePowerSave} />
+          </div>
         </div>
         {powerSave > 0 && (
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Threshold</span>
-              <span className="tabular-nums text-foreground">{powerSave}%</span>
+            <div className="flex items-center justify-between">
+              <span className="label-mono text-muted-foreground">Threshold</span>
+              <span className="label-mono text-foreground">{powerSave}%</span>
             </div>
             <Slider
               value={[powerSave]}
@@ -118,10 +115,10 @@ export default function GeneralSettingsPage({ device, config, patch, write }: Ge
         )}
       </SettingCard>
 
-      <SettingCard title="Debounce" icon={Ruler} description="Delay before a click registers, to filter out switch chatter.">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Debounce time</span>
-          <span className="tabular-nums text-foreground">{debounce} ms</span>
+      <SettingCard title="[3] Debounce" icon={Ruler} description="Delay before a click registers, to filter out switch chatter.">
+        <div className="flex items-center justify-between">
+          <span className="label-mono text-muted-foreground">Debounce time</span>
+          <span className="label-mono text-foreground">{debounce} MS</span>
         </div>
         <Slider
           value={[debounce]}
@@ -132,6 +129,18 @@ export default function GeneralSettingsPage({ device, config, patch, write }: Ge
           onValueCommitted={(v) => handleDebounceCommit(Array.isArray(v) ? v[0] : v)}
         />
       </SettingCard>
+
+      {device.info.connection === "dongle" && (
+        <SettingCard title="[4] Long distance" icon={Radio} description="Improves range at the cost of battery life — turn off when the dongle is close to the mouse.">
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="long-distance">Enable long distance mode</Label>
+            <div className="flex items-center gap-2">
+              <span className={cn("label-mono", config.longDistance ? "text-foreground" : "text-muted-foreground")}>{config.longDistance ? "[ON]" : "[OFF]"}</span>
+              <Switch id="long-distance" checked={config.longDistance} onCheckedChange={handleLongDistance} />
+            </div>
+          </div>
+        </SettingCard>
+      )}
     </div>
   )
 }

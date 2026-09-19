@@ -1,0 +1,5 @@
+<!-- Revert: a squared return path back to the last saved state. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+<path d="M5.75 2.5 2.25 6l3.5 3.5"/>
+<path d="M2.25 6h9.5v7.5H5.5"/>
+</svg>

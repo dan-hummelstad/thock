@@ -1,12 +1,13 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import { LayoutGrid, RotateCcw } from "lucide-react"
+import { LayoutGrid } from "lucide-react"
 import type { MouseDevice } from "../../protocol/types"
 import { PROFILE_COUNT } from "../../protocol/types"
-import { Badge } from "@thock/ui/components/ui/badge"
+import { PageHeader } from "@thock/ui/shell/PageHeader"
+import { Tile } from "@thock/ui/shell/Tile"
 import { Button } from "@thock/ui/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@thock/ui/components/ui/dialog"
-import { cn, withBusy } from "@thock/ui/lib/utils"
+import { withBusy } from "@thock/ui/lib/utils"
 
 interface ProfilesPageProps {
   device: MouseDevice
@@ -31,40 +32,31 @@ export default function ProfilesPage({ device, profile, onProfileChange, onResto
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <LayoutGrid className="size-5 text-muted-foreground" />
-        <h2 className="text-lg font-semibold">My Profiles</h2>
-      </div>
+      <PageHeader title="My Profiles" icon={LayoutGrid} index={2} count={`PROFILE ${profile + 1}/${PROFILE_COUNT}`} />
 
       <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium text-muted-foreground">Onboard profiles</h3>
-        <div className="flex flex-col gap-2">
+        <h3 className="label-mono text-muted-foreground">Onboard profiles</h3>
+        <div className="flex flex-wrap gap-2">
           {Array.from({ length: PROFILE_COUNT }, (_, p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => onProfileChange(p)}
-              className={cn(
-                "flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
-                p === profile ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted"
-              )}
-            >
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-secondary text-xs font-medium">{p + 1}</span>
-              <span className="flex-1 text-sm font-medium">Profile {p + 1}</span>
-              {p === profile && <Badge>Active</Badge>}
-            </button>
+            <Tile key={p} selected={p === profile} onClick={() => onProfileChange(p)} className="w-20">
+              <span className="font-mono text-[15px] tabular-nums">[{p + 1}]</span>
+              {/* The word, not just the fill — colour is never the only cue (styling-plan §5). */}
+              <span className="label-mono opacity-70">{p === profile ? "Active" : "Profile"}</span>
+            </Tile>
           ))}
         </div>
       </div>
 
-      <Button variant="outline" size="sm" className="w-fit" onClick={() => setConfirming(true)} disabled={busy}>
-        <RotateCcw /> Restore profile defaults
+      {/* Hairline, destructive *text* — a red fill here would compete with the one red fill in the
+          confirm dialog, which is where the irreversible action actually happens. */}
+      <Button variant="outline" size="sm" className="w-fit text-red-text" onClick={() => setConfirming(true)} disabled={busy}>
+        ↺ RESTORE DEFAULTS
       </Button>
 
       <Dialog open={confirming} onOpenChange={setConfirming}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Restore profile {profile + 1} defaults?</DialogTitle>
+            <DialogTitle>Restore profile [{profile + 1}]?</DialogTitle>
             <DialogDescription>
               Every setting on this profile — DPI stages, sensor, buttons, lighting — reverts to the factory
               defaults. This can't be undone.
@@ -72,10 +64,10 @@ export default function ProfilesPage({ device, profile, onProfileChange, onResto
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirming(false)}>
-              Cancel
+              CANCEL
             </Button>
             <Button variant="destructive" onClick={restore}>
-              Restore defaults
+              RESTORE DEFAULTS
             </Button>
           </DialogFooter>
         </DialogContent>

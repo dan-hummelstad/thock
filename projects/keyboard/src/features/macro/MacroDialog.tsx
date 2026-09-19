@@ -54,7 +54,7 @@ export default function MacroDialog({
     if (!macro) return
     await withBusy(setBusy, "write macro", async () => {
       await device.writeMacro(current, macro)
-      toast.success(`Macro ${current} written`)
+      toast.success(`Macro ${String(current).padStart(2, "0")} written`)
     })
   }
 
@@ -123,16 +123,18 @@ export default function MacroDialog({
 
   return (
     <Dialog open={index !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      {/* `fixed!` re-asserts the dialog's own positioning: `corner-ticks` sets position:relative and a
+          custom @utility never loses to a built-in by merge order (styling-plan §6.5). */}
+      <DialogContent className="corner-ticks fixed! sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Macro {current}</DialogTitle>
+          <DialogTitle>Macro [{String(current).padStart(2, "0")}]</DialogTitle>
           <DialogDescription>Record or edit the key/mouse events this macro plays back.</DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">Macro</span>
+        <div className="label-mono flex items-center gap-3">
+          <span className="text-muted-foreground">Macro</span>
           <Select value={String(current)} onValueChange={(v) => setCurrent(Number(v))}>
-            <SelectTrigger className="w-20">
+            <SelectTrigger size="sm" className="w-20">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -143,39 +145,52 @@ export default function MacroDialog({
               ))}
             </SelectContent>
           </Select>
-          <span className="text-sm text-muted-foreground">Repeat</span>
+          <span className="text-muted-foreground">Repeat</span>
           <Input
             type="number"
             min={0}
             value={macro?.repeatCount ?? 0}
             onChange={(e) => setMacro((prev) => (prev ? { ...prev, repeatCount: Number(e.target.value) || 0 } : prev))}
-            className="w-20"
+            className="h-7 w-20"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant={recording ? "destructive" : "outline"}
-            size="sm"
-            onClick={() => (recording ? setRecording(false) : startRecording())}
-          >
-            {recording ? "Stop" : "Record"}
+          {/* Hairline in both states — there is no acid left in the budget for a dialog's secondary
+              control (§8 A1). The red sits on the ● glyph, not on 11px type (styling-plan §5). */}
+          <Button variant="outline" size="sm" onClick={() => (recording ? setRecording(false) : startRecording())}>
+            {recording ? (
+              <>
+                <span className="text-red-text">●</span> Stop
+              </>
+            ) : (
+              <>
+                <span className="text-red-text">●</span> Rec
+              </>
+            )}
           </Button>
           <div
             ref={captureRef}
             tabIndex={recording ? 0 : -1}
             onKeyDown={handleKeyDown}
             onKeyUp={handleKeyUp}
-            className="flex h-8 flex-1 items-center rounded-md border border-dashed px-2 text-xs text-muted-foreground outline-none focus-visible:border-ring"
+            className="label-mono flex h-8 flex-1 items-center gap-1.5 border border-border px-2 text-muted-foreground outline-none"
           >
-            {recording ? "Recording — press keys, click Stop when done" : "Click Record, then focus here and type"}
+            {recording ? (
+              <>
+                <span className="text-red-text motion-safe:animate-pulse">●</span> Rec — press keys
+              </>
+            ) : (
+              "Click rec, then focus here and type"
+            )}
           </div>
         </div>
 
-        <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
+        <div className="flex max-h-64 flex-col overflow-y-auto border-t border-border">
           {macro?.events.map((ev, i) => (
             <EventRow
               key={i}
+              index={i + 1}
               ev={ev}
               onChange={(next) => updateEvent(i, next)}
               onDelete={() => deleteEvent(i)}
@@ -183,8 +198,8 @@ export default function MacroDialog({
               onMoveDown={macro && i < macro.events.length - 1 ? () => moveEvent(i, 1) : undefined}
             />
           ))}
-          <Button variant="outline" size="sm" className="self-start" onClick={addEvent} disabled={!macro}>
-            Add event
+          <Button variant="outline" size="sm" className="mt-2 self-start" onClick={addEvent} disabled={!macro}>
+            + Add event
           </Button>
         </div>
 

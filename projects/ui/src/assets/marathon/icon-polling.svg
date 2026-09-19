@@ -1,0 +1,4 @@
+<!-- Polling rate: a stepped square pulse train. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+<path d="M1.5 11.5H4V4.5h2.5v7H9v-7h2.5v7h3"/>
+</svg>

@@ -1,0 +1,4 @@
+<!-- 24px repeating tile: faint "+" registration mark for the app background grid. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1" stroke-opacity=".14" shape-rendering="crispEdges">
+<path d="M12.5 9.5v6M9.5 12.5h6"/>
+</svg>

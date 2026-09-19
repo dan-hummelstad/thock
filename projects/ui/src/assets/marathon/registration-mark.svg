@@ -1,0 +1,4 @@
+<!-- Registration crosshair: the poster wall's "+" mark, 1px hairlines on a 16px grid. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1" shape-rendering="crispEdges">
+<path d="M8.5 1.5v13M1.5 8.5h13"/>
+</svg>

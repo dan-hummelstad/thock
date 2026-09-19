@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
+import { Gauge, Settings, Timer, Settings2 } from "lucide-react"
 import type { KeyboardDevice, KbOptions, SleepTimers } from "../../protocol/types"
 import { REPORT_RATES, type ReportRate } from "../../protocol/settings"
-import { Separator } from "@thock/ui/components/ui/separator"
+import { PageHeader } from "@thock/ui/shell/PageHeader"
+import { SettingCard } from "@thock/ui/shell/SettingCard"
 import { Input } from "@thock/ui/components/ui/input"
 import { Label } from "@thock/ui/components/ui/label"
 import { Switch } from "@thock/ui/components/ui/switch"
@@ -39,7 +41,7 @@ export default function GeneralSettingsPage({ device }: GeneralSettingsPageProps
         setKbOptions(kb)
         setSleepTimers(st)
       })
-      .catch((err) => toast.error(`Failed to read settings: ${errorMessage(err)}`))
+      .catch((err) => toast.error(`ERR: failed to read settings — ${errorMessage(err)}`))
       .finally(() => setLoading(false))
   }, [device])
 
@@ -68,31 +70,33 @@ export default function GeneralSettingsPage({ device }: GeneralSettingsPageProps
     await withToast("set sleep timers", "Sleep timers updated", () => device.writeSleepTimers(next))
   }
 
-  if (loading) return <div className="p-6 text-sm text-muted-foreground">Reading from keyboard…</div>
+  if (loading) return <div className="label-mono p-6 text-muted-foreground">Reading from keyboard…</div>
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
-      <h2 className="text-lg font-semibold">Keyboard Settings</h2>
+    <div className="flex max-w-2xl flex-col gap-4">
+      <PageHeader title="Keyboard Settings" icon={Settings} />
 
-      <section className="flex flex-col gap-3">
-        <div>
-          <h3 className="text-base font-medium">Polling Rate</h3>
-          <p className="text-sm text-muted-foreground">
-            How often the keyboard reports to the computer. Higher is more responsive; lower can help if you see
-            stability issues.
-          </p>
-        </div>
+      {/* ponytail: the `[n]` prefix is written into the title string rather than adding an `index`
+          prop to the shared SettingCard — these are the only numbered cards in the app besides the
+          CODEX. Ceiling: a page that needs the prefix *styled* (acid, say) wants the real prop. */}
+      <SettingCard
+        title="[1] Report rate"
+        icon={Gauge}
+        description="How often the keyboard reports to the computer. Higher is more responsive; lower can help if you see stability issues."
+      >
         {reportRate === undefined ? (
-          <p className="text-sm text-muted-foreground">Not supported on this firmware.</p>
+          <p className="label-mono text-muted-foreground/60">Not supported on this firmware</p>
         ) : (
-          <RadioGroup value={reportRate} onValueChange={handleReportRate} className="flex flex-col gap-1.5">
+          <RadioGroup value={reportRate} onValueChange={handleReportRate} className="flex flex-col gap-px">
             {REPORT_RATES.map((hz) => (
               <label
                 key={hz}
                 htmlFor={`rate-${hz}`}
                 className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors",
-                  reportRate === hz ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted"
+                  "label-mono flex cursor-pointer items-center gap-3 border px-3 py-2 transition-colors duration-120",
+                  reportRate === hz
+                    ? "border-foreground/30 bg-raised text-foreground"
+                    : "border-border text-muted-foreground hover:bg-hover hover:text-foreground"
                 )}
               >
                 <RadioGroupItem id={`rate-${hz}`} value={hz} />
@@ -101,17 +105,13 @@ export default function GeneralSettingsPage({ device }: GeneralSettingsPageProps
             ))}
           </RadioGroup>
         )}
-      </section>
+      </SettingCard>
 
-      <Separator />
-
-      <section className="flex flex-col gap-3">
-        <div>
-          <h3 className="text-base font-medium">Debounce</h3>
-          <p className="text-sm text-muted-foreground">
-            Raw device value — the unit isn't confirmed yet (see PROTOCOL.md's ⚠ note).
-          </p>
-        </div>
+      <SettingCard
+        title="[2] Debounce"
+        icon={Timer}
+        description="Raw device value — the unit isn't confirmed yet (see PROTOCOL.md's ⚠ note)."
+      >
         <Input
           type="number"
           className="w-32"
@@ -120,14 +120,11 @@ export default function GeneralSettingsPage({ device }: GeneralSettingsPageProps
           max={255}
           onBlur={(e) => handleDebounceCommit(Number(e.target.value))}
         />
-      </section>
+      </SettingCard>
 
-      <Separator />
-
-      <section className="flex flex-col gap-4">
-        <h3 className="text-base font-medium">Sleep timers</h3>
+      <SettingCard title="[3] Sleep timers" icon={Timer} description="How long the board idles before it powers down its radios.">
         {!sleepTimers ? (
-          <p className="text-sm text-muted-foreground">Not supported on this firmware.</p>
+          <p className="label-mono text-muted-foreground/60">Not supported on this firmware</p>
         ) : (
           <>
             <SleepSlider label="Bluetooth light sleep" minutes={sleepTimers.bt / SECONDS_PER_MINUTE} max={60}
@@ -140,18 +137,15 @@ export default function GeneralSettingsPage({ device }: GeneralSettingsPageProps
               onCommit={(m) => handleSleepTimers({ rfDeep: m * SECONDS_PER_MINUTE })} />
           </>
         )}
-      </section>
+      </SettingCard>
 
-      <Separator />
-
-      <section className="flex flex-col gap-4">
-        <h3 className="text-base font-medium">Keyboard options</h3>
+      <SettingCard title="[4] Keyboard options" icon={Settings2} description="OS mode and the board's own input guards.">
         {!kbOptions ? (
-          <p className="text-sm text-muted-foreground">Not supported on this firmware.</p>
+          <p className="label-mono text-muted-foreground/60">Not supported on this firmware</p>
         ) : (
           <>
             <div className="flex items-center justify-between gap-2">
-              <Label>OS mode</Label>
+              <Label>OS</Label>
               <Select value={kbOptions.os} onValueChange={(v: KbOptions["os"] | null) => v != null && handleKbOptions({ os: v })} items={OS_ITEMS}>
                 <SelectTrigger size="sm" className="w-32">
                   <SelectValue />
@@ -166,11 +160,11 @@ export default function GeneralSettingsPage({ device }: GeneralSettingsPageProps
               </Select>
             </div>
             <div className="flex items-center justify-between">
-              <Label htmlFor="anti-mistouch">Anti-mistouch</Label>
+              <Label htmlFor="anti-mistouch">Anti-mistouch [{kbOptions.antiMistouch ? "ON" : "OFF"}]</Label>
               <Switch id="anti-mistouch" checked={kbOptions.antiMistouch} onCheckedChange={(v) => handleKbOptions({ antiMistouch: v })} />
             </div>
             <div className="flex items-center justify-between">
-              <Label htmlFor="wasd-swap">WASD / arrow swap</Label>
+              <Label htmlFor="wasd-swap">WASD / arrow swap [{kbOptions.wasdSwap ? "ON" : "OFF"}]</Label>
               <Switch id="wasd-swap" checked={kbOptions.wasdSwap} onCheckedChange={(v) => handleKbOptions({ wasdSwap: v })} />
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -194,7 +188,7 @@ export default function GeneralSettingsPage({ device }: GeneralSettingsPageProps
             </div>
           </>
         )}
-      </section>
+      </SettingCard>
     </div>
   )
 }
@@ -213,9 +207,9 @@ function SleepSlider({
   const [value, setValue] = useState(minutes)
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between text-sm">
-        <span>{label}</span>
-        <span className="tabular-nums text-muted-foreground">{value === 0 ? "off" : `${value} min`}</span>
+      <div className="label-mono flex items-center justify-between">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="tabular-nums text-foreground">{value === 0 ? "off" : `${value} min`}</span>
       </div>
       <Slider
         value={[value]}

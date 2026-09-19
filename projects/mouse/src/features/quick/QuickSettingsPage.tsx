@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { Battery, BatteryCharging, Crosshair, Gauge, Radio, Ruler, SlidersHorizontal } from "lucide-react"
 import type { Battery as BatteryInfo, MouseConfig, MouseDevice, ReportRate } from "../../protocol/types"
 import { REPORT_RATES, DEBOUNCE_MAX } from "../../protocol/types"
 import { PageHeader } from "@thock/ui/shell/PageHeader"
 import { SettingCard } from "@thock/ui/shell/SettingCard"
+import { Tile } from "@thock/ui/shell/Tile"
 import { Switch } from "@thock/ui/components/ui/switch"
 import { Slider } from "@thock/ui/components/ui/slider"
 import { ToggleGroup, ToggleGroupItem } from "@thock/ui/components/ui/toggle-group"
@@ -14,6 +15,35 @@ interface QuickSettingsPageProps {
   device: MouseDevice
   config: MouseConfig
   write: (next: MouseConfig) => Promise<void>
+}
+
+const BATTERY_SEGMENTS = 6
+
+/** `▮▮▮▮▮▯ 87%` — the Vault's shield-plate meter, one <span> per segment. A lucide battery glyph alone
+ * can't carry a level, and the number is there for anyone who can't read the fill. */
+function BatteryMeter({ level }: { level: number }) {
+  const filled = Math.round((level / 100) * BATTERY_SEGMENTS)
+  return (
+    <span className="label-mono flex items-center gap-1.5">
+      <span className="flex" aria-hidden>
+        {Array.from({ length: BATTERY_SEGMENTS }, (_, i) => (
+          <span key={i} className={i < filled ? (level <= 20 ? "text-red-text" : "text-acid") : "text-muted-foreground/40"}>
+            {i < filled ? "▮" : "▯"}
+          </span>
+        ))}
+      </span>
+      <span className="text-foreground">{level}%</span>
+    </span>
+  )
+}
+
+function Row({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="label-mono text-muted-foreground">{label}</span>
+      <span className="label-mono text-foreground">{value}</span>
+    </div>
+  )
 }
 
 export default function QuickSettingsPage({ device, config, write }: QuickSettingsPageProps) {
@@ -63,50 +93,52 @@ export default function QuickSettingsPage({ device, config, write }: QuickSettin
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Quick Settings" icon={SlidersHorizontal} help="The controls you'll reach for most often, all on one page." />
+      <PageHeader
+        title="Quick Settings"
+        icon={SlidersHorizontal}
+        index={1}
+        count={`STAGE ${config.currentDpiStage + 1}/${config.dpiStageCount}`}
+        help="The controls you'll reach for most often, all on one page."
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <SettingCard title="Battery & Connection" icon={battery?.charging ? BatteryCharging : Battery}>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Level</span>
-            <span className="tabular-nums">{battery ? `${battery.level}%${battery.charging ? " · charging" : ""}` : "—"}</span>
+        <SettingCard title="Battery & connection" icon={battery?.charging ? BatteryCharging : Battery}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="label-mono text-muted-foreground">Battery</span>
+            {battery ? (
+              <span className="flex items-center gap-1.5">
+                <BatteryMeter level={battery.level} />
+                {battery.charging && <span className="label-mono text-acid">· CHARGING</span>}
+              </span>
+            ) : (
+              <span className="label-mono text-muted-foreground/60">—</span>
+            )}
           </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Connection</span>
-            <span className="capitalize">{device.info.connection}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Firmware</span>
-            <span className="tabular-nums">{device.info.mouseVersion}</span>
-          </div>
-          {device.info.dongleVersion && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Dongle firmware</span>
-              <span className="tabular-nums">{device.info.dongleVersion}</span>
-            </div>
-          )}
+          <Row label="Connection" value={device.info.connection} />
+          <Row label="Firmware" value={device.info.mouseVersion} />
+          {device.info.dongleVersion && <Row label="Dongle firmware" value={device.info.dongleVersion} />}
         </SettingCard>
 
-        <SettingCard title="DPI Stage" icon={Crosshair} description="Click a stage to make it active.">
+        <SettingCard title="DPI stage" icon={Crosshair} description="Click a stage to make it active.">
           <div className="flex flex-wrap gap-2">
             {config.dpiStages.slice(0, config.dpiStageCount).map((stage, i) => (
-              <button
+              // The stage's own colour rides in as a CSS value on --bar, never a built class name
+              // (styling-plan §6.6).
+              <Tile
                 key={i}
-                type="button"
+                bar={rgbToHex(stage.color)}
+                selected={i === config.currentDpiStage}
                 onClick={() => handleStage(i)}
-                className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg border px-3 py-2 text-xs transition-colors",
-                  i === config.currentDpiStage ? "border-primary bg-primary/10" : "border-border bg-secondary/30 hover:bg-muted"
-                )}
+                className="w-16"
               >
-                <span className="size-4 rounded-full ring-1 ring-foreground/10" style={{ backgroundColor: rgbToHex(stage.color) }} />
-                <span className="tabular-nums font-medium">{stage.x}</span>
-              </button>
+                <span className="label-mono opacity-70">[{i + 1}]</span>
+                <span className="font-mono text-[13px] tabular-nums">{stage.x}</span>
+              </Tile>
             ))}
           </div>
         </SettingCard>
 
-        <SettingCard title="Polling Rate" icon={Gauge}>
+        <SettingCard title="Polling" icon={Gauge}>
           <ToggleGroup
             value={[String(config.reportRate)]}
             onValueChange={(v) => v[0] && handleRate(Number(v[0]) as ReportRate)}
@@ -116,30 +148,39 @@ export default function QuickSettingsPage({ device, config, write }: QuickSettin
           >
             {REPORT_RATES.filter((hz) => hz <= device.info.maxReportRate).map((hz) => (
               <ToggleGroupItem key={hz} value={String(hz)}>
-                {hz}
+                {hz >= 1000 ? `${hz / 1000}K` : hz}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
         </SettingCard>
 
         <SettingCard title="Sensor" icon={Radio}>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Lift-off distance</span>
-            <ToggleGroup value={[String(config.sensor.lod)]} onValueChange={(v) => v[0] && handleLod(Number(v[0]) as 1 | 2)} variant="outline" size="sm">
-              <ToggleGroupItem value="1">1 mm</ToggleGroupItem>
-              <ToggleGroupItem value="2">2 mm</ToggleGroupItem>
-            </ToggleGroup>
+          <div className="flex items-center justify-between gap-2">
+            <span className="label-mono text-muted-foreground">Lift-off distance</span>
+            <div className="flex gap-2">
+              {([1, 2] as const).map((mm) => (
+                <Tile key={mm} selected={config.sensor.lod === mm} onClick={() => handleLod(mm)} className="w-14">
+                  <span className="font-mono text-[15px] tabular-nums">{mm}</span>
+                  <span className="label-mono opacity-70">MM</span>
+                </Tile>
+              ))}
+            </div>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Motion sync</span>
-            <Switch checked={config.sensor.motionSync} onCheckedChange={handleMotionSync} />
+          <div className="flex items-center justify-between gap-2">
+            <span className="label-mono text-muted-foreground">Motion sync</span>
+            <div className="flex items-center gap-2">
+              <span className={cn("label-mono", config.sensor.motionSync ? "text-foreground" : "text-muted-foreground")}>
+                {config.sensor.motionSync ? "[ON]" : "[OFF]"}
+              </span>
+              <Switch checked={config.sensor.motionSync} onCheckedChange={handleMotionSync} />
+            </div>
           </div>
         </SettingCard>
 
         <SettingCard title="Debounce" icon={Ruler} description="Delay before a click registers, to filter out switch chatter.">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Debounce time</span>
-            <span className="tabular-nums text-foreground">{debounce} ms</span>
+          <div className="flex items-center justify-between">
+            <span className="label-mono text-muted-foreground">Debounce time</span>
+            <span className="label-mono text-foreground">{debounce} MS</span>
           </div>
           <Slider
             value={[debounce]}

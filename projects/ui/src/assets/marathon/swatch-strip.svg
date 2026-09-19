@@ -1,0 +1,7 @@
+<!-- CMYK-style press registration strip from the UESC posters: six process swatches on black. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 12" width="120" height="12" shape-rendering="crispEdges">
+<rect width="120" height="12" fill="#08090b"/>
+<rect x="4" y="2" width="14" height="7" fill="#c0fe04"/><rect x="21" y="2" width="14" height="7" fill="#ff5a1f"/><rect x="38" y="2" width="14" height="7" fill="#1a2bff"/><rect x="55" y="2" width="14" height="7" fill="#ff2a1f"/><rect x="72" y="2" width="14" height="7" fill="#ff2d8a"/><rect x="89" y="2" width="14" height="7" fill="#f7f5ef"/>
+<rect x="4" y="10" width="99" height="1" fill="#f7f5ef"/>
+<rect x="107" y="2" width="4" height="4" fill="#f7f5ef"/><rect x="111" y="6" width="4" height="4" fill="#f7f5ef"/>
+</svg>

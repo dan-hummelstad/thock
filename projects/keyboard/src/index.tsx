@@ -1,26 +1,24 @@
 import { useEffect, useState } from "react"
 import {
   Keyboard,
-  Settings,
   CircleQuestionMark,
   SlidersHorizontal,
-  LayoutGrid,
   ArrowDownToLine,
   Repeat,
   Sparkles,
   ArrowLeftRight,
   Layers,
 } from "lucide-react"
-import { IconRail, type IconRailItem } from "@thock/ui/shell/IconRail"
-import { NavPanel, type NavGroup } from "@thock/ui/shell/NavPanel"
-import { TopBar } from "@thock/ui/shell/TopBar"
+import { CommandBar } from "@thock/ui/shell/CommandBar"
+import { IndexList, type NavGroup } from "@thock/ui/shell/IndexList"
+import { StatusBar } from "@thock/ui/shell/StatusBar"
 import { ConnectGate } from "@thock/ui/shell/ConnectGate"
 import { useConnectOnce } from "@thock/ui/lib/useConnectOnce"
 import { useDevice, PROFILE_COUNT } from "./state/device"
 import { useNav, type Page, type Rail } from "./state/nav"
+import { useSelection } from "./state/selection"
 import type { Model } from "./protocol/types"
 import QuickSettingsPage from "./features/quick/QuickSettingsPage"
-import ProfilesPage from "./features/profiles/ProfilesPage"
 import ActuationPage from "./features/actuation/ActuationPage"
 import RapidTriggerPage from "./features/rapid/RapidTriggerPage"
 import GeneralSettingsPage from "./features/settings/GeneralSettingsPage"
@@ -29,10 +27,17 @@ import RgbPage from "./features/rgb/RgbPage"
 import RemapPage from "./features/remap/RemapPage"
 import AdvancedKeysPage from "./features/advanced/AdvancedKeysPage"
 
-const RAIL_ITEMS: IconRailItem<Rail>[] = [
-  { id: "keyboard", label: "Keyboard", icon: Keyboard },
-  { id: "settings", label: "Settings", icon: Settings },
-  { id: "help", label: "Help", icon: CircleQuestionMark },
+// Q on the first tab, E on the last — the Vault's tab strip flanks itself with those two keycaps.
+const TABS: { id: Rail; label: string; hint?: string }[] = [
+  { id: "keyboard", label: "KEYBOARD", hint: "Q" },
+  { id: "settings", label: "SETTINGS" },
+  { id: "help", label: "HELP", hint: "E" },
+]
+
+const HINTS = [
+  { key: "Esc", label: "DISCARD" },
+  { key: "⌘A", label: "SELECT ALL" },
+  { key: "Enter", label: "APPLY" },
 ]
 
 const RAIL_HOME: Record<Rail, Page> = { keyboard: "quick", settings: "settings", help: "help" }
@@ -40,11 +45,8 @@ const RAIL_HOME: Record<Rail, Page> = { keyboard: "quick", settings: "settings",
 const NAV_GROUPS: Record<Rail, NavGroup<Page>[]> = {
   keyboard: [
     {
-      label: "Profiles",
-      items: [
-        { page: "quick", label: "Quick Settings", icon: SlidersHorizontal },
-        { page: "profiles", label: "My Profiles", icon: LayoutGrid },
-      ],
+      label: "Keyboard",
+      items: [{ page: "quick", label: "Quick Settings", icon: SlidersHorizontal }],
     },
     {
       label: "Keyboard Configuration",
@@ -59,12 +61,6 @@ const NAV_GROUPS: Record<Rail, NavGroup<Page>[]> = {
   ],
   settings: [{ label: "Keyboard Settings", items: [{ page: "settings", label: "General", icon: SlidersHorizontal }] }],
   help: [{ label: "", items: [{ page: "help", label: "Help", icon: CircleQuestionMark }] }],
-}
-
-const RAIL_TITLE: Record<Rail, string> = {
-  keyboard: "Keyboard Configuration",
-  settings: "Settings",
-  help: "Help",
 }
 
 const MODEL_LABEL: Record<Model, string> = {
@@ -83,6 +79,7 @@ interface KeyboardAppProps {
 export function KeyboardApp({ mode, onExit }: KeyboardAppProps) {
   const { device, status, error, isMock, connect, connectMock, disconnect } = useDevice()
   const { rail, page, go } = useNav()
+  const { clear, selectAll } = useSelection()
   const [profile, setProfile] = useState(0)
 
   useConnectOnce(mode, connect, connectMock)
@@ -94,6 +91,25 @@ export function KeyboardApp({ mode, onExit }: KeyboardAppProps) {
       .then(setProfile)
       .catch(() => {})
   }, [device])
+
+  // The StatusBar keycap hints, bound (§8 A2). ponytail: Enter clicks whatever [data-slot=apply] is on
+  // screen instead of lifting every page's apply into a store — one Apply per page, which is the rule
+  // anyway. Ceiling: two Apply buttons on one page and the first one wins.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null
+      if (t?.closest("input, textarea, select, [contenteditable]")) return
+      if (e.key === "Escape") clear()
+      else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+        e.preventDefault()
+        selectAll()
+      } else if (e.key === "Enter" && t?.tagName !== "BUTTON") {
+        document.querySelector<HTMLButtonElement>("[data-slot=apply]")?.click()
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [clear, selectAll])
 
   async function handleProfileChange(p: number) {
     if (!device) return
@@ -113,31 +129,26 @@ export function KeyboardApp({ mode, onExit }: KeyboardAppProps) {
   return (
     <ConnectGate status={status} error={error} onRetry={() => (mode === "demo" ? connectMock() : connect())} onBack={handleDisconnect}>
       {device && (
-        <div className="flex h-screen">
-          <IconRail items={RAIL_ITEMS} active={rail} onSelect={(id) => go(RAIL_HOME[id])} onHome={handleDisconnect} />
-          <NavPanel
-            title={RAIL_TITLE[rail]}
-            groups={NAV_GROUPS[rail]}
-            page={page}
-            onGo={go}
+        <div className="flex h-screen flex-col">
+          <CommandBar
             device={{
               icon: Keyboard,
-              status: isMock ? "Demo device" : "Connected",
+              status: isMock ? "DEMO" : "CONNECTED",
               name: `${MODEL_LABEL[device.info.model]} · fw ${device.info.usbVersion}`,
             }}
-            footer="thock/keyboard v0.1"
+            profile={profile}
+            profileCount={PROFILE_COUNT}
+            onProfileChange={handleProfileChange}
+            tabs={TABS}
+            activeTab={rail}
+            onTab={(id) => go(RAIL_HOME[id])}
+            isMock={isMock}
+            onDisconnect={handleDisconnect}
           />
-          <div className="flex min-w-0 flex-1 flex-col">
-            <TopBar
-              profile={profile}
-              profileCount={PROFILE_COUNT}
-              onProfileChange={handleProfileChange}
-              isMock={isMock}
-              onDisconnect={handleDisconnect}
-            />
-            <main className="flex-1 overflow-y-auto p-6">
+          <div className="flex min-h-0 flex-1">
+            <IndexList groups={NAV_GROUPS[rail]} page={page} onGo={go} />
+            <main className="min-w-0 flex-1 overflow-y-auto p-6">
               {page === "quick" && <QuickSettingsPage device={device} profile={profile} />}
-              {page === "profiles" && <ProfilesPage device={device} profile={profile} onProfileChange={handleProfileChange} />}
               {page === "actuation" && <ActuationPage device={device} profile={profile} />}
               {page === "rapid" && <RapidTriggerPage device={device} profile={profile} />}
               {page === "rgb" && <RgbPage device={device} profile={profile} />}
@@ -147,6 +158,7 @@ export function KeyboardApp({ mode, onExit }: KeyboardAppProps) {
               {page === "help" && <HelpPage />}
             </main>
           </div>
+          <StatusBar hints={HINTS} link={isMock ? "LINK: DEMO" : "LINK: OK"} version="thock/keyboard v0.1" />
         </div>
       )}
     </ConnectGate>

@@ -1,0 +1,5 @@
+<!-- Help: a blocky question mark drawn as hard segments. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+<path d="M4.25 5.25V3.5h7.5V8h-3.5v2.25"/>
+<rect x="7.25" y="12" width="2" height="2" fill="currentColor"/>
+</svg>

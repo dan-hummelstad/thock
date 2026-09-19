@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react"
-import { Crosshair, Lightbulb, Star } from "lucide-react"
+import { Crosshair, Lightbulb } from "lucide-react"
 import type { DpiEffect, DpiStage, MouseConfig } from "../../protocol/types"
 import { DPI_MAX, DPI_MIN, DPI_STAGE_SLOTS } from "../../protocol/types"
 import { PageHeader } from "@thock/ui/shell/PageHeader"
 import { SettingCard } from "@thock/ui/shell/SettingCard"
 import { ApplyRevert } from "@thock/ui/shell/ApplyRevert"
+import { Stage } from "@thock/ui/shell/Stage"
+import { Tile } from "@thock/ui/shell/Tile"
 import { Button } from "@thock/ui/components/ui/button"
 import { Switch } from "@thock/ui/components/ui/switch"
 import { Slider } from "@thock/ui/components/ui/slider"
@@ -70,18 +72,19 @@ export default function DpiPage({ config, write }: DpiPageProps) {
       <PageHeader
         title="DPI"
         icon={Crosshair}
+        index={3}
         help="Up to 8 DPI stages, each with its own sensitivity, X/Y split and indicator colour."
         actions={<ApplyRevert dirty={dirty} saving={saving} onApply={apply} onRevert={revert} />}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
-        <div className="flex flex-col items-center gap-2">
+        <Stage index={3} title="Stage" count={`STAGES ${draft.stageCount}/${DPI_STAGE_SLOTS}`}>
           <MouseView stageColor={rgbToHex(stage.color)} className="max-w-[360px]" />
-          <p className="text-center text-xs text-muted-foreground">Editing stage {activeStage + 1}</p>
-        </div>
+          <p className="label-mono mt-3 text-center text-muted-foreground">Editing stage [{activeStage + 1}]</p>
+        </Stage>
 
         <div className="grid content-start gap-4">
-          <SettingCard title="Stages" description="Number of active DPI stages, and which one is live on the mouse.">
+          <SettingCard title="Stages" dirty={dirty} description="Number of active DPI stages, and which one is live on the mouse.">
             <div className="flex flex-wrap items-center justify-between gap-y-2">
               <Label>Stage count</Label>
               <ToggleGroup
@@ -101,19 +104,14 @@ export default function DpiPage({ config, write }: DpiPageProps) {
 
             <div className="flex flex-wrap gap-2">
               {draft.stages.slice(0, draft.stageCount).map((s, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setActiveStage(i)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
-                    i === activeStage ? "border-primary bg-primary/10" : "border-border bg-secondary/30 hover:bg-muted"
-                  )}
-                >
-                  <span className="size-3.5 rounded-full ring-1 ring-foreground/10" style={{ backgroundColor: rgbToHex(s.color) }} />
-                  <span className="tabular-nums">{s.x}</span>
-                  {i === draft.currentStage && <Star className="size-3 fill-primary text-primary" />}
-                </button>
+                // bar = the stage's own colour, passed as a CSS value through --bar rather than a built
+                // class name (styling-plan §6.6). Selected = the stage being edited; `◆ LIVE` = the one
+                // the mouse is actually on, so the two states never rely on the same signal.
+                <Tile key={i} bar={rgbToHex(s.color)} selected={i === activeStage} onClick={() => setActiveStage(i)} className="w-20">
+                  <span className="label-mono opacity-70">[{i + 1}]</span>
+                  <span className="font-mono text-[13px] tabular-nums">{s.x}</span>
+                  {i === draft.currentStage && <span className="label-mono">◆ LIVE</span>}
+                </Tile>
               ))}
             </div>
             <Button
@@ -123,15 +121,15 @@ export default function DpiPage({ config, write }: DpiPageProps) {
               onClick={() => setDraft((prev) => ({ ...prev, currentStage: activeStage }))}
               disabled={activeStage === draft.currentStage}
             >
-              <Star /> Make stage {activeStage + 1} active
+              ◆ MAKE STAGE [{activeStage + 1}] LIVE
             </Button>
           </SettingCard>
 
-          <SettingCard title={`Stage ${activeStage + 1}`} icon={Crosshair}>
+          <SettingCard title={`Stage [${activeStage + 1}]`} icon={Crosshair} dirty={dirty}>
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{splitOn ? "DPI (X)" : "DPI"}</span>
-                <span className="tabular-nums text-foreground">{stage.x}</span>
+              <div className="flex items-center justify-between">
+                <span className="label-mono text-muted-foreground">{splitOn ? "DPI (X)" : "DPI"}</span>
+                <span className="label-mono text-foreground">{stage.x}</span>
               </div>
               <Slider
                 value={[stage.x]}
@@ -145,27 +143,30 @@ export default function DpiPage({ config, write }: DpiPageProps) {
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label>Enable X-Y split</Label>
-              <Switch
-                checked={splitOn}
-                onCheckedChange={(on) => {
-                  setManuallySplit((prev) => {
-                    const next = new Set(prev)
-                    if (on) next.add(activeStage)
-                    else next.delete(activeStage)
-                    return next
-                  })
-                  if (!on) patchStage(activeStage, { y: stage.x })
-                }}
-              />
+            <div className="flex items-center justify-between gap-2">
+              <Label>X-Y split</Label>
+              <div className="flex items-center gap-2">
+                <span className={cn("label-mono", splitOn ? "text-foreground" : "text-muted-foreground")}>{splitOn ? "[ON]" : "[OFF]"}</span>
+                <Switch
+                  checked={splitOn}
+                  onCheckedChange={(on) => {
+                    setManuallySplit((prev) => {
+                      const next = new Set(prev)
+                      if (on) next.add(activeStage)
+                      else next.delete(activeStage)
+                      return next
+                    })
+                    if (!on) patchStage(activeStage, { y: stage.x })
+                  }}
+                />
+              </div>
             </div>
 
             {splitOn && (
               <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>DPI (Y)</span>
-                  <span className="tabular-nums text-foreground">{stage.y}</span>
+                <div className="flex items-center justify-between">
+                  <span className="label-mono text-muted-foreground">DPI (Y)</span>
+                  <span className="label-mono text-foreground">{stage.y}</span>
                 </div>
                 <Slider
                   value={[stage.y]}
@@ -179,17 +180,19 @@ export default function DpiPage({ config, write }: DpiPageProps) {
 
             <div className="flex items-center justify-between gap-2">
               <Label>Colour</Label>
+              {/* The native picker *is* the swatch tile — one square input, no hidden field. */}
               <input
                 type="color"
+                aria-label="Stage colour"
                 value={rgbToHex(stage.color)}
                 onChange={(e) => patchStage(activeStage, { color: hexToRgb(e.target.value) })}
-                className="h-8 w-16 cursor-pointer rounded border border-input bg-transparent"
+                className="size-10 shrink-0 cursor-pointer border border-border bg-panel p-1 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-0"
               />
             </div>
           </SettingCard>
 
-          <SettingCard title="DPI Indicator Light" icon={Lightbulb} description="The little light next to the DPI button.">
-            <div className="flex items-center justify-between">
+          <SettingCard title="DPI indicator light" icon={Lightbulb} dirty={dirty} description="The little light next to the DPI button.">
+            <div className="flex items-center justify-between gap-2">
               <Label>Mode</Label>
               <ToggleGroup
                 value={[String(draft.effect.mode)]}
@@ -207,9 +210,9 @@ export default function DpiPage({ config, write }: DpiPageProps) {
             {draft.effect.mode !== 0 && (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Brightness</span>
-                    <span className="tabular-nums text-foreground">{draft.effect.brightness}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="label-mono text-muted-foreground">Brightness</span>
+                    <span className="label-mono text-foreground">{draft.effect.brightness}</span>
                   </div>
                   <Slider
                     value={[draft.effect.brightness]}
@@ -221,9 +224,9 @@ export default function DpiPage({ config, write }: DpiPageProps) {
                 </div>
                 {draft.effect.mode === 2 && (
                   <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Speed</span>
-                      <span className="tabular-nums text-foreground">{draft.effect.speed}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="label-mono text-muted-foreground">Speed</span>
+                      <span className="label-mono text-foreground">{draft.effect.speed}</span>
                     </div>
                     <Slider
                       value={[draft.effect.speed]}

@@ -9,12 +9,13 @@ import { useKeyboardOverlay } from "../../components/shell/keyboard-overlay"
 import { KeyPageHeader } from "../../components/shell/KeyPageHeader"
 import { SettingCard } from "@thock/ui/shell/SettingCard"
 import { ApplyRevert } from "@thock/ui/shell/ApplyRevert"
+import { Tile } from "@thock/ui/shell/Tile"
 import { Button } from "@thock/ui/components/ui/button"
 import { useSelection } from "../../state/selection"
 import { plural } from "@thock/ui/lib/utils"
 import { useHallDraft } from "../hall/useHallDraft"
 import { formatMm } from "../hall/hall-utils"
-import { ADVANCED_CARDS, MODE_ICON, MODE_LABEL, type AdvancedCard } from "./advanced-cards"
+import { ADVANCED_CARDS, MODE_ABBR, MODE_ICON, MODE_LABEL, type AdvancedCard } from "./advanced-cards"
 import { ModeFields } from "./ModeFields"
 
 function paramsSummary(device: KeyboardDevice, k: KeyHallSettings): string {
@@ -50,7 +51,7 @@ export default function AdvancedKeysPage({ device }: AdvancedKeysPageProps) {
   function applyCard(card: AdvancedCard) {
     const slots = [...selected]
     if (slots.length !== card.keysNeeded) {
-      toast(`Select ${card.keysNeeded} key${plural(card.keysNeeded)} first`)
+      toast.error(`ERR: SELECT ${card.keysNeeded} KEY${plural(card.keysNeeded).toUpperCase()} FIRST`)
       return
     }
     if (card.id === "snap") {
@@ -76,18 +77,18 @@ export default function AdvancedKeysPage({ device }: AdvancedKeysPageProps) {
         const k = keyBySlot.get(slot)
         const label = keyName(device.matrix[slot])
         if (!k || k.mode === "normal") return label
-        const Icon = MODE_ICON[k.mode]
         return (
-          <span className="flex flex-col items-center gap-0.5 leading-tight">
+          <span className="flex flex-col items-center leading-tight">
             <span className="max-w-full truncate">{label}</span>
-            {Icon && <Icon className="size-2.5" />}
+            {/* The abbreviation printed on the tile, per the CVD rule — never the tint alone. */}
+            <span className="text-[8px] tracking-normal opacity-70">{MODE_ABBR[k.mode]}</span>
           </span>
         )
       },
       keyStyle: (slot) => {
         const k = keyBySlot.get(slot)
         return k && k.mode !== "normal"
-          ? { boxShadow: "inset 0 0 0 999px color-mix(in oklch, var(--color-primary) 14%, transparent)" }
+          ? { boxShadow: "inset 0 0 0 999px color-mix(in oklch, var(--purple-fill) 30%, transparent)" }
           : {}
       },
     },
@@ -95,7 +96,7 @@ export default function AdvancedKeysPage({ device }: AdvancedKeysPageProps) {
   )
 
   if (!draft) {
-    return <div className="p-6 text-sm text-muted-foreground">{loading ? "Reading from keyboard…" : "No data."}</div>
+    return <div className="label-mono p-6 text-muted-foreground">{loading ? "Reading from keyboard…" : "No data."}</div>
   }
 
   const selectedKeys = draft.filter((k) => selected.has(k.slot))
@@ -107,37 +108,41 @@ export default function AdvancedKeysPage({ device }: AdvancedKeysPageProps) {
       <KeyPageHeader
         title="Advanced Keys"
         icon={Layers}
-        help="Select the key(s) a mode needs, then click a card to apply it."
-        subject="an advanced key"
+        help="Select the key(s) a mode needs, then click a mode tile to apply it."
         actions={<ApplyRevert dirty={dirty} saving={saving} onApply={apply} onRevert={revert} />}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="flex flex-col gap-3">
-          <SettingCard title="Add Advanced Key" description="Select 1 key (2 for Snap Tap), then choose a type below.">
-            <div className="flex flex-col gap-2">
+          <SettingCard
+            title="Add Advanced Key"
+            description="Select 1 key (2 for Snap Tap), then choose a mode below."
+            dirty={dirty}
+          >
+            <div className="grid grid-cols-4 gap-2">
               {ADVANCED_CARDS.map((card) => {
                 const Icon = card.icon
                 return (
-                  <button
+                  <Tile
                     key={card.id}
-                    type="button"
+                    // Purple = the "epic" tier bar (D2); the abbreviation below it is what actually
+                    // names the mode. Colour is passed as a CSS value, never a built class (§6.6).
+                    bar="var(--color-purple-fill)"
+                    count={card.keysNeeded > 1 ? `×${card.keysNeeded}` : undefined}
                     onClick={() => applyCard(card)}
-                    className="flex items-start gap-3 rounded-lg border border-border bg-secondary/30 p-3 text-left hover:bg-muted"
+                    title={card.description}
                   >
-                    <Icon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-sm font-medium">{card.label}</span>
-                      <span className="text-xs text-muted-foreground">{card.description}</span>
-                    </div>
-                  </button>
+                    <Icon className="size-4 text-muted-foreground" />
+                    <span className="label-mono text-foreground">{card.abbr}</span>
+                  </Tile>
                 )
               })}
             </div>
+            <p className="label-mono text-muted-foreground/60">Snap requires 2 keys</p>
           </SettingCard>
 
           {showEditor && (
-            <SettingCard title="Parameters" description={MODE_LABEL[selectedKeys[0].mode]}>
+            <SettingCard title="Parameters" description={MODE_LABEL[selectedKeys[0].mode]} dirty={dirty}>
               <ModeFields
                 keys={selectedKeys}
                 slotName={(slot) => keyName(device.matrix[slot]) || `slot ${slot}`}
@@ -147,20 +152,31 @@ export default function AdvancedKeysPage({ device }: AdvancedKeysPageProps) {
           )}
         </div>
 
-        <SettingCard title={`Active Advanced Keys ${active.length}`} description="Every key currently running a non-normal mode.">
+        <SettingCard
+          title="Active Advanced Keys"
+          description="Every key currently running a non-normal mode."
+          action={<span className="label-mono tabular-nums text-muted-foreground">{active.length}</span>}
+          dirty={dirty}
+        >
           {active.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No advanced keys configured yet. Select one from the list to add it.</p>
+            <p className="text-[13px] leading-snug text-muted-foreground">
+              No advanced keys configured yet. Select a key, then pick a mode tile.
+            </p>
           ) : (
-            <div className="flex flex-col gap-2">
-              {active.map((k) => {
+            <div className="flex flex-col">
+              {active.map((k, i) => {
                 const Icon = MODE_ICON[k.mode]
                 return (
-                  <div key={k.slot} className="flex items-center gap-2 rounded-lg border border-border p-2">
-                    {Icon && <Icon className="size-4 shrink-0 text-muted-foreground" />}
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-sm font-medium">{keyName(device.matrix[k.slot])}</span>
-                      <span className="text-xs text-muted-foreground">{paramsSummary(device, k)}</span>
-                    </div>
+                  <div
+                    key={k.slot}
+                    data-index={i + 1}
+                    className="index-prefix label-mono flex items-center gap-2 border-b border-border py-2 text-muted-foreground last:border-b-0"
+                  >
+                    {Icon && <Icon className="size-4 shrink-0" />}
+                    <span className="truncate text-foreground">{keyName(device.matrix[k.slot])}</span>
+                    <span className="ml-auto tabular-nums">
+                      {MODE_ABBR[k.mode]} · {paramsSummary(device, k)}
+                    </span>
                     <Button variant="ghost" size="icon-xs" onClick={() => removeMode(k.slot)}>
                       <X />
                     </Button>

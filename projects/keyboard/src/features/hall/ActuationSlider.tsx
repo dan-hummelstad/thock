@@ -51,7 +51,7 @@ export function ActuationSlider({ value, min, max, step, disabled, onChange }: A
           onBlur={commit}
           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
         />
-        <span className="text-xs text-muted-foreground">mm</span>
+        <span className="label-mono text-muted-foreground">mm</span>
       </div>
     </div>
   )

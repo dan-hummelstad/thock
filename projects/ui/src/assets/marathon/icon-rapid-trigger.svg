@@ -1,0 +1,5 @@
+<!-- Rapid trigger: travel reversing on both axes about a reset threshold. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+<path d="M8 2v12M5.25 4.75 8 2l2.75 2.75M5.25 11.25 8 14l2.75-2.75"/>
+<path d="M1.5 8h3M11.5 8h3"/>
+</svg>

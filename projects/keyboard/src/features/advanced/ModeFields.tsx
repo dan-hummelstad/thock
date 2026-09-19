@@ -37,7 +37,7 @@ export function ModeFields({
         <div className="grid grid-cols-4 gap-2">
           {key.dksTriggerModes.map((v, i) => (
             <div key={i} className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">Trig {i + 1}</Label>
+              <Label className="label-mono text-muted-foreground">Trig {i + 1}</Label>
               <Input
                 type="number"
                 min={0}
@@ -72,7 +72,7 @@ export function ModeFields({
 
   if (key.mode === "snap") {
     return (
-      <p className="text-xs text-muted-foreground">
+      <p className="text-[13px] leading-snug text-muted-foreground">
         Partnered with {key.snapPartnerSlot != null ? slotName(key.snapPartnerSlot) : "?"} — whichever key is pressed
         further wins.
       </p>
@@ -82,7 +82,7 @@ export function ModeFields({
   if (key.mode === "tgl_hold" || key.mode === "tgl_dots") {
     return (
       <div className="flex items-center justify-between">
-        <Label className="text-xs text-muted-foreground">Activation</Label>
+        <Label className="label-mono text-muted-foreground">Activation</Label>
         <ToggleGroup
           value={[key.mode]}
           onValueChange={(v) => v[0] && onUpdate(key.slot, { mode: v[0] as KeyMode })}

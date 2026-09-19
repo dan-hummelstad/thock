@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type KeyboardEvent } from "react"
 import { toast } from "sonner"
-import { ChevronDownIcon, ChevronUpIcon, Keyboard as KeyboardIcon, XIcon } from "lucide-react"
+import { ChevronDownIcon, ChevronUpIcon, XIcon } from "lucide-react"
 import type { Macro, MacroEvent, MacroStatus, MouseDevice } from "../../protocol/types"
-import { MACRO_MAX_EVENTS, MACRO_MAX_NAME } from "../../protocol/types"
+import { KEY_LABELS, MACRO_MAX_EVENTS, MACRO_MAX_NAME } from "../../protocol/types"
 import { codeToScancode, scancodeToCode } from "../../protocol/keys"
 import { Button } from "@thock/ui/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@thock/ui/components/ui/dialog"
@@ -12,11 +12,17 @@ import { withBusy } from "@thock/ui/lib/utils"
 import { codeLabel } from "../../lib/scancode"
 import { MACRO_MOUSE_OPTIONS } from "./multimedia"
 
+// Log words, not sentences: the event list is a mono log (`001  DOWN  KC_A  +0ms`), so these are the
+// literal tokens it prints.
 const STATUS_OPTIONS: { value: MacroStatus; label: string }[] = [
-  { value: "full", label: "Full press" },
-  { value: "press", label: "Key down" },
-  { value: "release", label: "Key up" },
+  { value: "full", label: "FULL" },
+  { value: "press", label: "DOWN" },
+  { value: "release", label: "UP" },
 ]
+
+// label-mono sets its own font-size, so a control that needs mono at a *different* size spells it out
+// instead (styling-plan §6.5b).
+const MONO_TRIGGER = "w-[86px] shrink-0 font-mono text-[11px]! tracking-[0.08em] uppercase"
 
 // Key-stroke events use the same scancode `type` space as ShortcutKey (0 modifier / 1 normal / 7
 // ContextMenu, §4.4) — a mouse/scroll event's `type` is always >= 2 (§4.6 InsertEventOptions), so the
@@ -104,12 +110,12 @@ export default function MacroDialog({ device, keyIndex, open, onOpenChange }: Ma
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit macro</DialogTitle>
+          <DialogTitle>{keyIndex === null ? "Macro" : `Macro [${keyIndex + 1}] ${KEY_LABELS[keyIndex]}`}</DialogTitle>
           <DialogDescription>Build the sequence of key and mouse events this button plays back.</DialogDescription>
         </DialogHeader>
 
         {!macro ? (
-          <p className="text-sm text-muted-foreground">{busy ? "Reading from mouse…" : "No data."}</p>
+          <p className="label-mono text-muted-foreground">{busy ? "READING FROM MOUSE…" : "NO DATA."}</p>
         ) : (
           <>
             <Input
@@ -120,15 +126,18 @@ export default function MacroDialog({ device, keyIndex, open, onOpenChange }: Ma
             />
 
             <div className="flex items-center gap-2">
+              {/* Record control: hairline in both states; armed (focused) it goes red and says what to do.
+                  No acid — there is none left in the budget for a dialog's secondary control (§8 A1). */}
               <div
                 tabIndex={0}
                 onKeyDown={handleKeyCapture}
-                className="flex h-8 flex-1 cursor-default items-center justify-center gap-1.5 rounded-md border border-dashed px-2 text-xs text-muted-foreground outline-none focus-visible:border-ring"
+                className="group label-mono flex h-8 flex-1 cursor-default items-center justify-center gap-1.5 border border-border text-muted-foreground outline-none transition-colors duration-120 hover:bg-hover focus:text-red-text"
               >
-                <KeyboardIcon className="size-3.5" /> Click, then press a key to add it
+                <span className="text-red-text">●</span> REC
+                <span className="hidden group-focus:inline">— PRESS KEYS</span>
               </div>
               <Select value={null} onValueChange={(v: number | null) => v != null && addEvent({ status: "full", type: v, value: v, delayMs: 50 })}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger size="sm" className="w-40">
                   <SelectValue placeholder="Add mouse event" />
                 </SelectTrigger>
                 <SelectContent>
@@ -141,11 +150,13 @@ export default function MacroDialog({ device, keyIndex, open, onOpenChange }: Ma
               </Select>
             </div>
 
-            <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
+            {/* Mono event log: `001  DOWN  KC_A  +50ms`, one hairline per row. */}
+            <div className="flex max-h-64 flex-col divide-y divide-border overflow-y-auto border border-border">
               {macro.events.map((ev, i) => (
-                <div key={i} className="flex items-center gap-2 rounded-md border border-border p-2">
+                <div key={i} className="flex items-center gap-2 px-2 py-1.5">
+                  <span className="label-mono shrink-0 text-muted-foreground">{String(i + 1).padStart(3, "0")}</span>
                   <Select value={ev.status} onValueChange={(v: MacroStatus | null) => v && updateEvent(i, { status: v })} items={STATUS_OPTIONS}>
-                    <SelectTrigger className="w-28 shrink-0">
+                    <SelectTrigger size="sm" className={MONO_TRIGGER}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -156,29 +167,30 @@ export default function MacroDialog({ device, keyIndex, open, onOpenChange }: Ma
                       ))}
                     </SelectContent>
                   </Select>
-                  <span className="flex-1 truncate text-sm">{describeValue(ev)}</span>
-                  <span className="text-xs text-muted-foreground">ms</span>
+                  <span className="label-mono flex-1 truncate text-foreground">{describeValue(ev)}</span>
+                  <span className="label-mono text-muted-foreground">+</span>
                   <Input
                     type="number"
                     min={0}
                     value={ev.delayMs}
                     onChange={(e) => updateEvent(i, { delayMs: Math.max(0, Number(e.target.value) || 0) })}
-                    className="w-20"
+                    className="h-7 w-16 shrink-0"
                   />
-                  <div className="flex shrink-0 items-center gap-1">
+                  <span className="label-mono text-muted-foreground">MS</span>
+                  <div className="flex shrink-0 items-center">
                     <Button variant="ghost" size="icon-xs" onClick={() => moveEvent(i, -1)} disabled={i === 0}>
-                      <ChevronUpIcon />
+                      <ChevronUpIcon strokeWidth={1.5} />
                     </Button>
                     <Button variant="ghost" size="icon-xs" onClick={() => moveEvent(i, 1)} disabled={i === macro.events.length - 1}>
-                      <ChevronDownIcon />
+                      <ChevronDownIcon strokeWidth={1.5} />
                     </Button>
                     <Button variant="ghost" size="icon-xs" onClick={() => deleteEvent(i)}>
-                      <XIcon />
+                      <XIcon strokeWidth={1.5} />
                     </Button>
                   </div>
                 </div>
               ))}
-              {macro.events.length === 0 && <p className="text-xs text-muted-foreground">No events yet — add one above.</p>}
+              {macro.events.length === 0 && <p className="label-mono px-2 py-3 text-muted-foreground/60">NO EVENTS — RECORD ONE ABOVE</p>}
             </div>
           </>
         )}

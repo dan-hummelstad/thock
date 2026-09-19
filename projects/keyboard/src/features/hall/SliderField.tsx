@@ -25,8 +25,8 @@ export function SliderField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>
+      <div className="label-mono flex items-center justify-between">
+        <span className="text-muted-foreground">
           {label}
           {mixed ? " · mixed" : ""}
         </span>

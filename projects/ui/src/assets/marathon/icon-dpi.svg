@@ -1,0 +1,6 @@
+<!-- DPI: a reticle with a solid centre inside the sensor frame. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+<rect x="1.75" y="1.75" width="12.5" height="12.5"/>
+<path d="M8 4v8M4 8h8"/>
+<rect x="6.5" y="6.5" width="3" height="3" fill="currentColor" stroke="none"/>
+</svg>

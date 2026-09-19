@@ -5,7 +5,6 @@ import { Sparkles } from "lucide-react"
 import type { KeyboardDevice, LightSetting } from "../../protocol/types"
 import { LIGHT_EFFECTS } from "../../protocol/light"
 import { Button } from "@thock/ui/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@thock/ui/components/ui/card"
 import { Label } from "@thock/ui/components/ui/label"
 import { Slider } from "@thock/ui/components/ui/slider"
 import { Switch } from "@thock/ui/components/ui/switch"
@@ -14,7 +13,9 @@ import { KeyboardStage } from "../../components/shell/KeyboardStage"
 import { useKeyboardOverlay } from "../../components/shell/keyboard-overlay"
 import { KeyPageHeader } from "../../components/shell/KeyPageHeader"
 import { SettingCard } from "@thock/ui/shell/SettingCard"
-import { cn, withBusy } from "@thock/ui/lib/utils"
+import { ApplyRevert } from "@thock/ui/shell/ApplyRevert"
+import { Tile } from "@thock/ui/shell/Tile"
+import { withBusy } from "@thock/ui/lib/utils"
 import { ColourBlock } from "./ColourBlock"
 import { PRESET_COLOURS, coloursEqual, effectIcon, formatEffectName, lightEqual, rgbToHex, visibleEffects } from "./rgb-utils"
 
@@ -79,7 +80,7 @@ export default function RgbPage({ device, profile }: { device: KeyboardDevice; p
   )
 
   if (!light || !colours) {
-    return <div className="p-6 text-sm text-muted-foreground">{busy ? "Reading from keyboard…" : "No data."}</div>
+    return <div className="label-mono p-6 text-muted-foreground">{busy ? "Reading from keyboard…" : "No data."}</div>
   }
 
   const lightDirty = !lightOriginal || !lightEqual(light, lightOriginal)
@@ -129,101 +130,90 @@ export default function RgbPage({ device, profile }: { device: KeyboardDevice; p
         title="RGB Settings"
         icon={Sparkles}
         help="Set the keyboard's global lighting effect, or select keys to paint their own colours."
-        subject="key colours"
         actions={
           <>
             <Button variant="ghost" size="sm" onClick={load} disabled={busy}>
               Reload
             </Button>
-            <Button variant="outline" size="sm" onClick={revert} disabled={busy || (!lightDirty && !coloursDirty)}>
-              Revert
-            </Button>
-            <Button size="sm" onClick={applyAll} disabled={busy || (!lightDirty && !coloursDirty)}>
-              Apply
-            </Button>
+            <ApplyRevert
+              dirty={lightDirty || coloursDirty}
+              saving={busy}
+              onApply={applyAll}
+              onRevert={revert}
+            />
           </>
         }
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-        <ColourBlock rgb={brushRgb} selectedCount={selection.selected.size} onPick={pickColour} />
+        <ColourBlock
+          rgb={brushRgb}
+          selectedCount={selection.selected.size}
+          dirty={coloursDirty}
+          onPick={pickColour}
+        />
 
-        <Card size="sm">
-          <CardHeader>
-            <CardTitle>Effects</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Brightness</span>
-                <span className="tabular-nums text-foreground">{light.brightness}</span>
-              </div>
-              <Slider
-                min={0}
-                max={4}
-                step={1}
-                value={[light.brightness]}
-                onValueChange={(v) => setLight({ ...light, brightness: Array.isArray(v) ? v[0] : v })}
-              />
-            </div>
+        <SettingCard title="Effects" dirty={lightDirty}>
+          <Level label="Brightness" value={light.brightness} onChange={(v) => setLight({ ...light, brightness: v })} />
 
-            {light.effect === USER_PICTURE_EFFECT && (
-              // Effect 13 is hidden from the grid (rgb-utils), so nothing looks selected after a
-              // per-key apply — say why instead of leaving the grid blank.
-              <p className="text-xs text-muted-foreground">
-                Per-key colours are driving the lighting. Pick an effect below to switch back.
-              </p>
-            )}
+          {light.effect === USER_PICTURE_EFFECT && (
+            // Effect 13 is hidden from the grid (rgb-utils), so nothing looks selected after a
+            // per-key apply — say why instead of leaving the grid blank.
+            <p className="label-mono text-muted-foreground">Per-key buffer driving output</p>
+          )}
 
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {effects.map(({ id, name }) => {
-                const Icon = effectIcon(name)
-                const active = light.effect === id
-                return (
-                  <button
-                    key={id}
-                    onClick={() => setLight({ ...light, effect: id })}
-                    className={cn(
-                      "flex flex-col items-center gap-1.5 rounded-lg border p-3 text-xs transition-colors",
-                      active
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "border-border bg-secondary/40 text-muted-foreground hover:bg-muted",
-                    )}
-                  >
-                    <Icon className="size-4" />
-                    <span className="text-center leading-tight">{formatEffectName(name)}</span>
-                  </button>
-                )
-              })}
-            </div>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {effects.map(({ id, name }) => {
+              const Icon = effectIcon(name)
+              return (
+                <Tile
+                  key={id}
+                  selected={light.effect === id}
+                  onClick={() => setLight({ ...light, effect: id })}
+                >
+                  <Icon className="size-4" />
+                  <span className="label-mono text-center leading-tight">{formatEffectName(name)}</span>
+                </Tile>
+              )
+            })}
+          </div>
 
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Speed</span>
-                <span className="tabular-nums text-foreground">{light.speed}</span>
-              </div>
-              <Slider
-                min={0}
-                max={4}
-                step={1}
-                value={[light.speed]}
-                onValueChange={(v) => setLight({ ...light, speed: Array.isArray(v) ? v[0] : v })}
-              />
-            </div>
+          <Level label="Speed" value={light.speed} onChange={(v) => setLight({ ...light, speed: v })} />
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="rgb-dazzle">Dazzle (cycle colours)</Label>
-              <Switch id="rgb-dazzle" checked={light.colour === 8} onCheckedChange={toggleDazzle} />
-            </div>
-          </CardContent>
-        </Card>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="rgb-dazzle">Dazzle [{light.colour === 8 ? "ON" : "OFF"}]</Label>
+            <Switch id="rgb-dazzle" checked={light.colour === 8} onCheckedChange={toggleDazzle} />
+          </div>
+        </SettingCard>
       </div>
 
-      <SettingCard title="Per-key colours" description="Paint keys with the colour block above, then apply the buffer to the board.">
-        <Button size="sm" className="self-end" onClick={applyColours} disabled={busy || !coloursDirty}>
-          Apply
+      <SettingCard
+        title="Per-key colours"
+        description="Paint keys with the colour block above, then apply the buffer to the board."
+        dirty={coloursDirty}
+      >
+        <Button variant="outline" size="sm" className="self-end" onClick={applyColours} disabled={busy || !coloursDirty}>
+          Apply buffer
         </Button>
       </SettingCard>
     </KeyboardStage>
+  )
+}
+
+/** A 0–4 device level: mono readout plus a tick row, so the number is readable without dragging. */
+function Level({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="label-mono flex items-center justify-between">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="tabular-nums text-foreground">{value}/4</span>
+      </div>
+      <Slider min={0} max={4} step={1} value={[value]} onValueChange={(v) => onChange(Array.isArray(v) ? v[0] : v)} />
+      <div className="label-mono flex justify-between text-muted-foreground/60">
+        {[0, 1, 2, 3, 4].map((n) => (
+          <span key={n}>{n}</span>
+        ))}
+      </div>
+    </div>
   )
 }

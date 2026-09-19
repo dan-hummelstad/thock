@@ -6,6 +6,8 @@ import { KeyType, KEY_LABELS } from "../../protocol/types"
 import { KEY_OPTIONS, type KeyOption } from "../../protocol/keys"
 import { PageHeader } from "@thock/ui/shell/PageHeader"
 import { SettingCard } from "@thock/ui/shell/SettingCard"
+import { Stage } from "@thock/ui/shell/Stage"
+import { Tile } from "@thock/ui/shell/Tile"
 import { Button } from "@thock/ui/components/ui/button"
 import { Input } from "@thock/ui/components/ui/input"
 import { Label } from "@thock/ui/components/ui/label"
@@ -24,6 +26,14 @@ type EditMode = "direct" | "keyboard" | "multimedia" | "macro" | "fire"
 const DIRECT_OPTIONS = KEY_OPTIONS.filter((o) => o.type !== KeyType.ShortcutKey && o.type !== KeyType.Macro)
 const MEDIA_OPTIONS = KEY_OPTIONS.filter((o): o is KeyOption & { media: number } => o.media !== undefined)
 
+// The four options that need state of their own, as data — four near-identical tiles were four blocks.
+const MODE_TILES: { mode: EditMode; label: string; fn: KeyFunction }[] = [
+  { mode: "keyboard", label: "Keyboard shortcut", fn: { type: KeyType.ShortcutKey, param: 0 } },
+  { mode: "multimedia", label: "Multimedia", fn: { type: KeyType.ShortcutKey, param: 0 } },
+  { mode: "macro", label: "Macro", fn: { type: KeyType.Macro, param: 0 } },
+  { mode: "fire", label: "Rapid fire", fn: { type: KeyType.FireKey, param: 0 } },
+]
+
 function modeFor(fn: KeyFunction): EditMode {
   if (fn.type === KeyType.Macro) return "macro"
   if (fn.type === KeyType.FireKey) return "fire"
@@ -37,10 +47,6 @@ const FIRE_TIMES_OPTIONS = [
   { value: 2, label: "2 times" },
   { value: 3, label: "3 times" },
 ]
-
-const MODE_BUTTON = "rounded-md border px-2 py-1 text-xs transition-colors"
-const MODE_BUTTON_ACTIVE = "border-primary bg-primary/10"
-const MODE_BUTTON_INACTIVE = "border-border bg-secondary/30 hover:bg-muted"
 
 interface ButtonsPageProps {
   device: MouseDevice
@@ -105,9 +111,13 @@ export default function ButtonsPage({ device, config, patch }: ButtonsPageProps)
 
   function describeFn(fn: KeyFunction): string {
     if (fn.type === KeyType.Macro) return "Macro"
-    if (fn.type === KeyType.ShortcutKey) return "Keyboard / Multimedia"
-    if (fn.type === KeyType.FireKey) return "Rapid Fire"
-    return DIRECT_OPTIONS.find((o) => o.type === fn.type && o.param === fn.param)?.label ?? `Type ${fn.type}`
+    if (fn.type === KeyType.ShortcutKey) return "Key: shortcut / multimedia"
+    if (fn.type === KeyType.FireKey) return "Rapid fire"
+    const label = DIRECT_OPTIONS.find((o) => o.type === fn.type && o.param === fn.param)?.label
+    if (!label) return `Type ${fn.type}`
+    // `[1] LEFT — MOUSE: LEFT CLICK` (§4b copy). Only MouseKey labels need the family prefix; every
+    // other option's own label already names it ("DPI Switch: Cycle", "Scroll Up", "Profile"…).
+    return fn.type === KeyType.MouseKey ? `Mouse: ${label}` : label
   }
 
   // Nothing to assign yet for these two modes — Apply stays disabled (below) until one is picked/typed.
@@ -119,7 +129,7 @@ export default function ButtonsPage({ device, config, patch }: ButtonsPageProps)
     const isLeftClick = pendingFn.type === KeyType.MouseKey && pendingFn.param === 0x0100
     const othersHaveLeft = keys.some((k, i) => i !== selected && k.type === KeyType.MouseKey && k.param === 0x0100)
     if (!isLeftClick && !othersHaveLeft) {
-      toast.error("At least one button must stay assigned to Left Click")
+      toast.error("ERR: ONE BUTTON MUST STAY LEFT CLICK")
       return
     }
 
@@ -141,95 +151,76 @@ export default function ButtonsPage({ device, config, patch }: ButtonsPageProps)
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Buttons" icon={MousePointerClick} help="Pick a button on the diagram (or the list), then choose what it does." />
+      <PageHeader title="Buttons" icon={MousePointerClick} index={6} help="Pick a button on the diagram (or the list), then choose what it does." />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
-        <div className="flex flex-col gap-3">
-          <MouseView selected={selected} onSelect={setSelected} className="max-w-[360px] self-center" />
-          <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-4">
+          <Stage index={6} title="Stage" count={`${KEY_LABELS[selected]} selected`}>
+            <MouseView selected={selected} onSelect={setSelected} className="max-w-[360px]" />
+          </Stage>
+          <div className="flex flex-col">
             {KEY_LABELS.map((label, i) => (
+              // Index rows, IndexList's grammar — but the bar is cobalt, because this selection is
+              // "pointing at", not "committed" (thock-style-plan §8 A1 / D2).
               <button
                 key={i}
                 type="button"
                 onClick={() => setSelected(i)}
+                data-index={i + 1}
                 className={cn(
-                  "flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left text-sm transition-colors",
-                  i === selected ? "border-primary bg-primary/10" : "border-border bg-secondary/30 hover:bg-muted"
+                  "index-prefix label-mono relative flex w-full items-center gap-1 px-2 py-2 text-left transition-colors duration-120",
+                  "after:absolute after:inset-y-0 after:left-0 after:w-0.5 after:bg-cobalt-text after:opacity-0",
+                  i === selected
+                    ? "bg-cobalt-fill/20 text-foreground after:opacity-100"
+                    : "text-muted-foreground hover:bg-hover hover:text-foreground"
                 )}
               >
-                <span className="font-medium">{label}</span>
-                <span className="truncate text-xs text-muted-foreground">{describeFn(keys[i])}</span>
+                <span className="w-16 shrink-0">{label}</span>
+                <span className="truncate text-muted-foreground">— {describeFn(keys[i])}</span>
               </button>
             ))}
           </div>
         </div>
 
         <SettingCard
-          title={`${KEY_LABELS[selected]} button`}
+          title={`[${selected + 1}] ${KEY_LABELS[selected]} button`}
           icon={MousePointerClick}
           action={
-            <Button size="sm" onClick={apply} disabled={busy || incomplete}>
+            // data-slot=apply is what the app's Enter binding clicks (§8 A2) — one per screen.
+            <Button data-slot="apply" size="sm" onClick={apply} disabled={busy || incomplete}>
               Apply
             </Button>
           }
         >
-          <div className="flex flex-wrap gap-1.5">
-            {DIRECT_OPTIONS.map((o, i) => {
-              const active = mode === "direct" && pendingFn.type === o.type && pendingFn.param === o.param
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => {
-                    setMode("direct")
-                    setPendingFn({ type: o.type, param: o.param })
-                  }}
-                  className={cn(MODE_BUTTON, active ? MODE_BUTTON_ACTIVE : MODE_BUTTON_INACTIVE)}
-                >
-                  {o.label}
-                </button>
-              )
-            })}
-            <button
-              type="button"
-              onClick={() => {
-                setMode("keyboard")
-                setPendingFn({ type: KeyType.ShortcutKey, param: 0 })
-              }}
-              className={cn(MODE_BUTTON, mode === "keyboard" ? MODE_BUTTON_ACTIVE : MODE_BUTTON_INACTIVE)}
-            >
-              Keyboard shortcut
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("multimedia")
-                setPendingFn({ type: KeyType.ShortcutKey, param: 0 })
-              }}
-              className={cn(MODE_BUTTON, mode === "multimedia" ? MODE_BUTTON_ACTIVE : MODE_BUTTON_INACTIVE)}
-            >
-              Multimedia
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("macro")
-                setPendingFn({ type: KeyType.Macro, param: 0 })
-              }}
-              className={cn(MODE_BUTTON, mode === "macro" ? MODE_BUTTON_ACTIVE : MODE_BUTTON_INACTIVE)}
-            >
-              Macro
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("fire")
-                setPendingFn({ type: KeyType.FireKey, param: 0 })
-              }}
-              className={cn(MODE_BUTTON, mode === "fire" ? MODE_BUTTON_ACTIVE : MODE_BUTTON_INACTIVE)}
-            >
-              Rapid Fire
-            </button>
+          {/* ponytail: `aspect-auto h-16` overrides Tile's square — 17 options at true aspect-square is a
+              700px wall in a 4-column grid. Ceiling: a shorter option list can drop the override. */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {DIRECT_OPTIONS.map((o, i) => (
+              <Tile
+                key={i}
+                selected={mode === "direct" && pendingFn.type === o.type && pendingFn.param === o.param}
+                onClick={() => {
+                  setMode("direct")
+                  setPendingFn({ type: o.type, param: o.param })
+                }}
+                className="aspect-auto h-16"
+              >
+                <span className="label-mono text-center leading-tight">{o.label}</span>
+              </Tile>
+            ))}
+            {MODE_TILES.map((t) => (
+              <Tile
+                key={t.mode}
+                selected={mode === t.mode}
+                onClick={() => {
+                  setMode(t.mode)
+                  setPendingFn(t.fn)
+                }}
+                className="aspect-auto h-16"
+              >
+                <span className="label-mono text-center leading-tight">{t.label}</span>
+              </Tile>
+            ))}
           </div>
 
           {mode === "keyboard" && (
@@ -263,9 +254,9 @@ export default function ButtonsPage({ device, config, patch }: ButtonsPageProps)
 
           {mode === "macro" && (
             <div className="flex flex-col gap-2">
-              <p className="text-xs text-muted-foreground">Applying assigns this button to Macro; edit its contents below.</p>
+              <p className="text-sm text-muted-foreground">Applying assigns this button to Macro; edit its contents below.</p>
               <Button variant="outline" size="sm" className="w-fit" onClick={() => setMacroOpen(true)}>
-                <Zap /> Edit macro…
+                <Zap strokeWidth={1.5} /> Edit macro…
               </Button>
             </div>
           )}
@@ -273,7 +264,7 @@ export default function ButtonsPage({ device, config, patch }: ButtonsPageProps)
           {mode === "fire" && (
             <div className="flex items-end gap-3">
               <div className="flex flex-col gap-1">
-                <Label className="text-xs text-muted-foreground">Interval (ms)</Label>
+                <Label>Interval (ms)</Label>
                 <Input
                   type="number"
                   min={10}
@@ -284,7 +275,7 @@ export default function ButtonsPage({ device, config, patch }: ButtonsPageProps)
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <Label className="text-xs text-muted-foreground">Times</Label>
+                <Label>Times</Label>
                 <Select value={fireTimes} onValueChange={(v: number | null) => v != null && setFireTimes(v)} items={FIRE_TIMES_OPTIONS}>
                   <SelectTrigger className="w-40">
                     <SelectValue />

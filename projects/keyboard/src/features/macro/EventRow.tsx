@@ -18,12 +18,15 @@ const MOUSE_BUTTONS: { value: number; name: string }[] = [
 const EVENT_TYPES: MacroEvent["type"][] = ["keyboard", "mouse_button", "mouse_move", "delay"]
 
 export function EventRow({
+  index,
   ev,
   onChange,
   onDelete,
   onMoveUp,
   onMoveDown,
 }: {
+  /** 1-based position, printed as the log's `001` column. */
+  index: number
   ev: MacroEvent
   onChange: (ev: MacroEvent) => void
   onDelete: () => void
@@ -31,9 +34,13 @@ export function EventRow({
   onMoveDown?: () => void
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-border p-2">
+    // A mono event-log row, not a card: `001  DOWN  KC_A  +120ms`, hairline underneath, tabular nums.
+    // ponytail: the columns stay live controls (Selects/Inputs) rather than becoming read-only text —
+    // editing an event in place is the point of this dialog. Ceiling: the log isn't copy-pasteable.
+    <div className="label-mono flex items-center gap-2 border-b border-border py-1.5 last:border-b-0">
+      <span className="w-8 shrink-0 tabular-nums text-muted-foreground/60">{String(index).padStart(3, "0")}</span>
       <Select value={ev.type} onValueChange={(v) => onChange(defaultEvent(v as MacroEvent["type"]))}>
-        <SelectTrigger className="w-32 shrink-0">
+        <SelectTrigger size="sm" className="w-28 shrink-0">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -49,7 +56,7 @@ export function EventRow({
         {ev.type === "keyboard" && (
           <>
             <Select value={ev.action} onValueChange={(v) => onChange({ ...ev, action: v as "down" | "up" })}>
-              <SelectTrigger className="w-20">
+              <SelectTrigger size="sm" className="w-20">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -57,14 +64,14 @@ export function EventRow({
                 <SelectItem value="up">up</SelectItem>
               </SelectContent>
             </Select>
-            <KeyPicker value={ev.value ?? 0} onChange={(usage) => onChange({ ...ev, value: usage })} className="flex-1" />
+            <KeyPicker value={ev.value ?? 0} onChange={(usage) => onChange({ ...ev, value: usage })} className="h-7 flex-1" />
           </>
         )}
 
         {ev.type === "mouse_button" && (
           <>
             <Select value={ev.action} onValueChange={(v) => onChange({ ...ev, action: v as "down" | "up" })}>
-              <SelectTrigger className="w-20">
+              <SelectTrigger size="sm" className="w-20">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -73,7 +80,7 @@ export function EventRow({
               </SelectContent>
             </Select>
             <Select value={String(ev.value ?? 240)} onValueChange={(v) => onChange({ ...ev, value: Number(v) })}>
-              <SelectTrigger className="flex-1">
+              <SelectTrigger size="sm" className="flex-1">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -89,36 +96,36 @@ export function EventRow({
 
         {ev.type === "mouse_move" && (
           <>
-            <span className="text-xs text-muted-foreground">dx</span>
+            <span className="text-muted-foreground">dx</span>
             <Input
               type="number"
               min={-128}
               max={127}
               value={ev.dx ?? 0}
               onChange={(e) => onChange({ ...ev, dx: Math.max(-128, Math.min(127, Number(e.target.value) || 0)) })}
-              className="w-20"
+              className="h-7 w-20"
             />
-            <span className="text-xs text-muted-foreground">dy</span>
+            <span className="text-muted-foreground">dy</span>
             <Input
               type="number"
               min={-128}
               max={127}
               value={ev.dy ?? 0}
               onChange={(e) => onChange({ ...ev, dy: Math.max(-128, Math.min(127, Number(e.target.value) || 0)) })}
-              className="w-20"
+              className="h-7 w-20"
             />
           </>
         )}
 
         {ev.type === "delay" && (
           <>
-            <span className="text-xs text-muted-foreground">ms</span>
+            <span className="text-muted-foreground">+ms</span>
             <Input
               type="number"
               min={0}
               value={ev.value ?? 0}
               onChange={(e) => onChange({ ...ev, value: Math.max(0, Number(e.target.value) || 0) })}
-              className="w-24"
+              className="h-7 w-24"
             />
           </>
         )}

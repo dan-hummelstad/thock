@@ -13,6 +13,7 @@ import { KeyboardStage } from "../../components/shell/KeyboardStage"
 import { useKeyboardOverlay, type KeyboardLayer } from "../../components/shell/keyboard-overlay"
 import { KeyPageHeader } from "../../components/shell/KeyPageHeader"
 import { SettingCard } from "@thock/ui/shell/SettingCard"
+import { ApplyRevert } from "@thock/ui/shell/ApplyRevert"
 import { KeyCaptureBox } from "../../components/keyboard/KeyCaptureBox"
 import { useSelection } from "../../state/selection"
 import { diffIndices, plural, withBusy } from "@thock/ui/lib/utils"
@@ -69,7 +70,7 @@ export default function RemapPage({ device, profile }: { device: KeyboardDevice;
 
   function assign(action: KeyAction) {
     if (selection.selected.size === 0) {
-      toast("Select a key first")
+      toast.error("ERR: NO KEY SELECTED")
       return
     }
     const entry = encodeEntry(action)
@@ -121,7 +122,7 @@ export default function RemapPage({ device, profile }: { device: KeyboardDevice;
       },
       keyStyle: (slot) =>
         entries && original && !entriesEqual(entries[slot], original[slot])
-          ? { boxShadow: "inset 0 0 0 1px var(--color-primary)" }
+          ? { boxShadow: "inset 0 0 0 2px var(--color-cobalt-text)" }
           : {},
     },
     [entries, original, layer, device],
@@ -138,7 +139,7 @@ export default function RemapPage({ device, profile }: { device: KeyboardDevice;
     if (!entries || !original) return
     const changed = diffIndices(entries, original, entriesEqual)
     if (changed.length === 0) {
-      toast("No changes to apply")
+      toast("No changes to apply")  // not an error: Apply is disabled unless dirty, so this is a race
       return
     }
     await withBusy(setBusy, "write keymap", async () => {
@@ -160,7 +161,7 @@ export default function RemapPage({ device, profile }: { device: KeyboardDevice;
   const pick = (chip: ActionChip) => assign(chip.action)
 
   if (!entries) {
-    return <div className="p-6 text-sm text-muted-foreground">{busy ? "Reading from keyboard…" : "No data."}</div>
+    return <div className="label-mono p-6 text-muted-foreground">{busy ? "Reading from keyboard…" : "No data."}</div>
   }
 
   return (
@@ -169,25 +170,19 @@ export default function RemapPage({ device, profile }: { device: KeyboardDevice;
         title="Remap"
         icon={ArrowLeftRight}
         help="Select one or more keys on the board, then click an action below to assign it."
-        subject="key bindings"
         actions={
           <>
             <Button variant="ghost" size="sm" onClick={load} disabled={busy}>
               Reload
             </Button>
-            <Button variant="outline" size="sm" onClick={revert} disabled={busy || !dirty}>
-              Revert
-            </Button>
-            <Button size="sm" onClick={apply} disabled={busy || !dirty}>
-              Apply
-            </Button>
+            <ApplyRevert dirty={dirty} saving={busy} onApply={apply} onRevert={revert} />
           </>
         }
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
         <div className="flex flex-col gap-3">
-          <SettingCard title="Remap keys" description="Pick a preset, or select keys and click an action on the right.">
+          <SettingCard title="Remap keys" description="Pick a preset, or select keys and click an action on the right." dirty={dirty}>
             <div className="flex flex-col gap-2">
               {layer === "fn" && (
                 <ToggleGroup
@@ -206,7 +201,7 @@ export default function RemapPage({ device, profile }: { device: KeyboardDevice;
                 onClick={resetToDefault}
                 disabled={layer !== "main" || selection.selected.size === 0}
               >
-                <RotateCcw /> Default
+                <RotateCcw /> Default ▸
               </Button>
             </div>
           </SettingCard>
@@ -241,13 +236,14 @@ export default function RemapPage({ device, profile }: { device: KeyboardDevice;
 
           <KeyCaptureBox onPick={(usage) => assign({ type: "key", usage })} />
 
-          <div className="flex flex-col gap-2 overflow-y-auto">
-            <CategorySection title="Basic Characters" icon={Type} chips={filter(BASIC_CHIPS)} open={!!q} onPick={pickBasic} />
-            <CategorySection title="Extended Characters" icon={LayoutGrid} chips={filter(EXTENDED_CHIPS)} open={!!q} onPick={pick} />
-            <CategorySection title="Functions" icon={Settings2} chips={filter(FUNCTION_CHIPS)} open={!!q} onPick={pick} />
-            <CategorySection title="Profiles" icon={Users} chips={filter(PROFILE_CHIPS)} open={!!q} onPick={pick} />
-            <CategorySection title="Media and Audio control" icon={Volume2} chips={filter(MEDIA_CHIPS)} open={!!q} onPick={pick} />
-            <CategorySection title="Macros" icon={PlayCircle} chips={filter(MACRO_CHIPS)} open={!!q} onPick={pickMacro} />
+          <div className="flex flex-col overflow-y-auto border-t border-border">
+            {/* The `[n]` counter is local to this list, like every other page's (§2 numbering rules). */}
+            <CategorySection index={1} title="Basic Characters" icon={Type} chips={filter(BASIC_CHIPS)} open={!!q} onPick={pickBasic} />
+            <CategorySection index={2} title="Extended Characters" icon={LayoutGrid} chips={filter(EXTENDED_CHIPS)} open={!!q} onPick={pick} />
+            <CategorySection index={3} title="Functions" icon={Settings2} chips={filter(FUNCTION_CHIPS)} open={!!q} onPick={pick} />
+            <CategorySection index={4} title="Profiles" icon={Users} chips={filter(PROFILE_CHIPS)} open={!!q} onPick={pick} />
+            <CategorySection index={5} title="Media and Audio control" icon={Volume2} chips={filter(MEDIA_CHIPS)} open={!!q} onPick={pick} />
+            <CategorySection index={6} title="Macros" icon={PlayCircle} chips={filter(MACRO_CHIPS)} open={!!q} onPick={pickMacro} />
           </div>
         </div>
       </div>

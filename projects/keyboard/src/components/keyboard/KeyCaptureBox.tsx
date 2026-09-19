@@ -1,11 +1,14 @@
-import type { KeyboardEvent } from "react"
+import { useState, type KeyboardEvent } from "react"
 import { Keyboard as KeyboardIcon } from "lucide-react"
 import { HID_USAGES } from "../../protocol/keynames"
 import { cn } from "@thock/ui/lib/utils"
 
 /** "Press a key…" capture strip: resolves a DOM keydown to a HID usage via its `code`. Shared by
- * Remap's direct-assign box and the macro KeyPicker's popover. */
+ * Remap's direct-assign box and the macro KeyPicker's popover. Focused, it flips to the Marathon
+ * capture state — `LISTENING…` in acid with a blinking cursor. */
 export function KeyCaptureBox({ onPick, className }: { onPick: (usage: number) => void; className?: string }) {
+  const [listening, setListening] = useState(false)
+
   function handleKeyDown(e: KeyboardEvent) {
     e.preventDefault()
     const found = HID_USAGES.find((u) => u.code === e.code)
@@ -16,12 +19,27 @@ export function KeyCaptureBox({ onPick, className }: { onPick: (usage: number) =
     <div
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onFocus={() => setListening(true)}
+      onBlur={() => setListening(false)}
       className={cn(
-        "flex h-9 cursor-default items-center justify-center gap-1.5 rounded-md border border-dashed text-xs text-muted-foreground outline-none focus-visible:border-ring",
+        "label-mono flex h-9 cursor-default items-center justify-center gap-1.5 border outline-none",
+        listening ? "border-acid text-acid" : "border-border text-muted-foreground",
         className
       )}
     >
-      <KeyboardIcon className="size-3.5" /> Press a key…
+      {listening ? (
+        <>
+          Listening…
+          {/* ponytail: animate-pulse is tailwind's own keyframe, killed centrally by the
+              prefers-reduced-motion block in index.css's… no — that block only names the two custom
+              animations, hence the explicit motion-safe: here. */}
+          <span className="motion-safe:animate-pulse">▌</span>
+        </>
+      ) : (
+        <>
+          <KeyboardIcon className="size-3.5" strokeWidth={1.5} /> Press a key…
+        </>
+      )}
     </div>
   )
 }

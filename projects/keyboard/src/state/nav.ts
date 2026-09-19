@@ -3,7 +3,6 @@ import { clearSelection } from "./selection"
 
 export type Page =
   | "quick"
-  | "profiles"
   | "actuation"
   | "rapid"
   | "rgb"
@@ -16,7 +15,6 @@ export type Rail = "keyboard" | "settings" | "help"
 
 const RAIL_OF: Record<Page, Rail> = {
   quick: "keyboard",
-  profiles: "keyboard",
   actuation: "keyboard",
   rapid: "keyboard",
   rgb: "keyboard",

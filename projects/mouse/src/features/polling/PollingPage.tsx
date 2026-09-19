@@ -3,13 +3,18 @@ import type { MouseConfig, MouseDevice, ReportRate } from "../../protocol/types"
 import { REPORT_RATES } from "../../protocol/types"
 import { PageHeader } from "@thock/ui/shell/PageHeader"
 import { SettingCard } from "@thock/ui/shell/SettingCard"
-import { ToggleGroup, ToggleGroupItem } from "@thock/ui/components/ui/toggle-group"
+import { Tile } from "@thock/ui/shell/Tile"
 import { withToast } from "@thock/ui/lib/utils"
 
 interface PollingPageProps {
   device: MouseDevice
   config: MouseConfig
   write: (next: MouseConfig) => Promise<void>
+}
+
+/** `1000` → `1K`: the tile row reads `125 · 250 · 500 · 1K · 2K · 4K · 8K`. */
+function rateLabel(hz: ReportRate): string {
+  return hz >= 1000 ? `${hz / 1000}K` : String(hz)
 }
 
 export default function PollingPage({ device, config, write }: PollingPageProps) {
@@ -22,16 +27,23 @@ export default function PollingPage({ device, config, write }: PollingPageProps)
 
   return (
     <div className="flex max-w-xl flex-col gap-4">
-      <PageHeader title="Polling Rate" icon={Gauge} help="How often the mouse reports its position to the computer." />
+      <PageHeader
+        title="Polling Rate"
+        icon={Gauge}
+        index={4}
+        count={`${rateLabel(config.reportRate)} HZ`}
+        help="How often the mouse reports its position to the computer."
+      />
 
       <SettingCard title="Report rate" icon={Gauge}>
-        <ToggleGroup value={[String(config.reportRate)]} onValueChange={(v) => v[0] && handleRate(Number(v[0]) as ReportRate)} variant="outline" className="flex-wrap">
+        <div className="flex flex-wrap gap-2">
           {rates.map((hz) => (
-            <ToggleGroupItem key={hz} value={String(hz)}>
-              {hz} Hz
-            </ToggleGroupItem>
+            <Tile key={hz} selected={hz === config.reportRate} onClick={() => handleRate(hz)} className="w-16">
+              <span className="font-mono text-[15px] tabular-nums">{rateLabel(hz)}</span>
+              <span className="label-mono opacity-70">HZ</span>
+            </Tile>
           ))}
-        </ToggleGroup>
+        </div>
       </SettingCard>
     </div>
   )

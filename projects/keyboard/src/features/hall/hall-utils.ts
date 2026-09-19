@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react"
 import type { KeyHallSettings } from "../../protocol/types"
 
 /** mm readout for a travel value. Quick Settings rounds to 2dp for a terser card; everywhere else uses 3dp. */
@@ -47,4 +48,16 @@ export function commonValue<K extends keyof KeyHallSettings>(keys: KeyHallSettin
     }
   }
   return best
+}
+
+/** The key-tile heatmap strip: `--bar` painted in `hue` at an opacity ∝ how deep `value` sits in
+ * `0..max`. One mechanism for the actuation heatmap, the live-travel readout and Rapid Trigger's
+ * cobalt bar — only the hue changes.
+ *
+ * ponytail: opacity is the only channel. `@utility value-bar` paints a full-width 3px strip and has
+ * no width knob, so a `--bar-pct` would need an index.css change (P0's file, not this phase's).
+ * Ceiling: no width-scaled or segmented bars on key tiles; the mm value on the tile is the precise read. */
+export function heatBar(value: number, max: number, hue = "var(--acid)"): CSSProperties {
+  const depth = Math.min(1, Math.max(0, value / max))
+  return { "--bar": `color-mix(in oklch, ${hue} ${Math.round(20 + 60 * depth)}%, transparent)` } as CSSProperties
 }

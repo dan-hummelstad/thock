@@ -29,7 +29,7 @@ export default function QuickSettingsPage({ device }: QuickSettingsPageProps) {
   const [splitSensitivity, setSplitSensitivity] = useState(false)
 
   if (!draft) {
-    return <div className="p-6 text-sm text-muted-foreground">{loading ? "Reading from keyboard…" : "No data."}</div>
+    return <div className="label-mono p-6 text-muted-foreground">{loading ? "Reading from keyboard…" : "No data."}</div>
   }
 
   const step = 1 / device.info.travelMultiplier
@@ -57,7 +57,6 @@ export default function QuickSettingsPage({ device }: QuickSettingsPageProps) {
         title="Quick Settings"
         icon={ArrowDownToLine}
         help="Actuation point, rapid trigger and switch type for the selected keys."
-        subject="Actuation Point and Rapid Trigger"
         actions={<ApplyRevert dirty={dirty} saving={saving} onApply={apply} onRevert={revert} />}
       />
 
@@ -66,6 +65,7 @@ export default function QuickSettingsPage({ device }: QuickSettingsPageProps) {
           title="Actuation Point"
           icon={ArrowDownToLine}
           description="Set the point to activate a keypress for the selected keys."
+          dirty={dirty}
         >
           <ActuationSlider
             value={travelValue}
@@ -75,13 +75,16 @@ export default function QuickSettingsPage({ device }: QuickSettingsPageProps) {
             disabled={noSelection}
             onChange={(v) => applyPatch({ travel: v })}
           />
-          <p className="text-xs text-muted-foreground">for {selected.size} key{plural(selected.size)}</p>
+          <p className="label-mono text-muted-foreground">
+            Target: {selected.size} key{plural(selected.size)}
+          </p>
         </SettingCard>
 
         <SettingCard
           title="Rapid Trigger"
           icon={Repeat}
           description="Dynamically actuates and resets a key based on your intention to press or release it."
+          dirty={dirty}
           action={
             <Switch
               checked={rapidTrigger.value ?? false}
@@ -91,7 +94,7 @@ export default function QuickSettingsPage({ device }: QuickSettingsPageProps) {
           }
         >
           <div className="flex items-center justify-between">
-            <Label htmlFor="quick-split">Split sensitivity</Label>
+            <Label htmlFor="quick-split">Split sensitivity [{splitSensitivity ? "ON" : "OFF"}]</Label>
             <Switch id="quick-split" checked={splitSensitivity} disabled={noSelection} onCheckedChange={setSplitSensitivity} />
           </div>
           {splitSensitivity ? (
@@ -129,13 +132,15 @@ export default function QuickSettingsPage({ device }: QuickSettingsPageProps) {
               onChange={(v) => applyPatch({ rtPressTravel: v, rtLiftTravel: v })}
             />
           )}
-          <div className="-mt-2 flex justify-between text-[10px] font-medium text-muted-foreground">
-            <span>HIGH</span>
-            <span>LOW</span>
+          {/* ponytail: the HIGH/LOW pair is a mono tick row under the rail, not ticks drawn *on* the
+              rail — that would mean a prop on the shared Slider. Ceiling: no per-step tick marks. */}
+          <div className="label-mono -mt-3 flex justify-between text-muted-foreground/60">
+            <span>High</span>
+            <span>Low</span>
           </div>
         </SettingCard>
 
-        <SettingCard title="Switch Type" icon={Cpu} description="The switch fitted in the selected keys.">
+        <SettingCard title="Switch Type" icon={Cpu} description="The switch fitted in the selected keys." dirty={dirty}>
           <Select
             value={switchTypeValue}
             disabled={noSelection}
@@ -153,7 +158,7 @@ export default function QuickSettingsPage({ device }: QuickSettingsPageProps) {
               ))}
             </SelectContent>
           </Select>
-          {switchType.mixed && <p className="text-xs text-muted-foreground">Mixed across selection.</p>}
+          {switchType.mixed && <p className="label-mono text-muted-foreground/60">Mixed across selection</p>}
         </SettingCard>
       </div>
     </KeyboardStage>

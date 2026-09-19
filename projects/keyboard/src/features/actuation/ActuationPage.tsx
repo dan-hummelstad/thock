@@ -13,7 +13,7 @@ import { plural } from "@thock/ui/lib/utils"
 import { useHallDraft } from "../hall/useHallDraft"
 import { ActuationSlider } from "../hall/ActuationSlider"
 import { SliderField } from "../hall/SliderField"
-import { commonValue, formatMm as mm, targetValue } from "../hall/hall-utils"
+import { commonValue, formatMm as mm, heatBar, targetValue } from "../hall/hall-utils"
 import { DEAD_ZONE_RANGE, TRAVEL_RANGE } from "../hall/constants"
 
 interface ActuationPageProps {
@@ -63,27 +63,34 @@ export default function ActuationPage({ device }: ActuationPageProps) {
     return (
       <span className="relative flex h-full w-full items-center justify-center">
         <span className="max-w-full truncate">{name}</span>
-        {k && <span className="absolute right-0.5 bottom-0.5 text-[7px] leading-none text-muted-foreground">{k.travel.toFixed(2)}</span>}
+        {k && (
+          <span className="absolute right-0.5 bottom-0.5 text-[7px] leading-none tracking-normal tabular-nums opacity-60">
+            {k.travel.toFixed(2)}
+          </span>
+        )}
       </span>
     )
   }
 
+  // The heatmap and the live view are one mechanism: both paint the tile's 3px `value-bar` in acid at
+  // an intensity ∝ depth. Live travel wins while it is polling, so a pressed key reads brighter than
+  // its configured actuation point.
   function keyStyle(slot: number): CSSProperties {
-    if (liveOn && liveTravel && liveTravel[slot] > 0.03) {
-      const pct = Math.min(100, (liveTravel[slot] / TRAVEL_RANGE.max) * 100)
-      return { background: `linear-gradient(to top, var(--color-primary) ${pct}%, transparent ${pct}%), var(--color-secondary)` }
-    }
+    if (liveOn && liveTravel && liveTravel[slot] > 0.03) return heatBar(liveTravel[slot], TRAVEL_RANGE.max)
     const k = keyBySlot.get(slot)
-    if (k && baselineTravel != null && k.travel !== baselineTravel) {
-      return { boxShadow: "inset 0 0 0 999px color-mix(in oklch, var(--color-primary) 12%, transparent)" }
-    }
-    return {}
+    if (!k) return {}
+    const style = heatBar(k.travel, TRAVEL_RANGE.max)
+    // A key that strays from the board's baseline also gets a faint wash, so "this one is different"
+    // survives a printout as well as the bar's intensity.
+    return baselineTravel != null && k.travel !== baselineTravel
+      ? { ...style, boxShadow: "inset 0 0 0 999px color-mix(in oklch, var(--acid) 8%, transparent)" }
+      : style
   }
 
   useKeyboardOverlay({ keyLabel, keyStyle }, [keyBySlot, liveOn, liveTravel, baselineTravel])
 
   if (!draft) {
-    return <div className="p-6 text-sm text-muted-foreground">{loading ? "Reading from keyboard…" : "No data."}</div>
+    return <div className="label-mono p-6 text-muted-foreground">{loading ? "Reading from keyboard…" : "No data."}</div>
   }
 
   const step = 1 / device.info.travelMultiplier
@@ -118,10 +125,10 @@ export default function ActuationPage({ device }: ActuationPageProps) {
           title="Set Actuation Point"
           icon={ArrowDownToLine}
           description="Customize the actuation point by setting the exact distance a key must be pressed before it registers a keypress."
+          dirty={dirty}
         >
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Changing actuation point for <span className="text-foreground">{selected.size}</span> key
-            {plural(selected.size)}
+          <p className="label-mono text-muted-foreground">
+            Target: <span className="text-foreground">{selected.size}</span> key{plural(selected.size)}
           </p>
           <ActuationSlider
             value={travelValue}
@@ -133,7 +140,7 @@ export default function ActuationPage({ device }: ActuationPageProps) {
           />
         </SettingCard>
 
-        <SettingCard title="Advanced" icon={Ruler} description="Release travel and dead zones for the selected keys.">
+        <SettingCard title="Advanced" icon={Ruler} description="Release travel and dead zones for the selected keys." dirty={dirty}>
           <SliderField
             label="Release travel"
             value={liftValue}
@@ -145,7 +152,7 @@ export default function ActuationPage({ device }: ActuationPageProps) {
             onChange={(v) => applyPatch({ liftTravel: v })}
           />
           <SliderField
-            label="Bottom dead zone"
+            label="Dead zone (bottom)"
             value={deadZoneValue}
             min={DEAD_ZONE_RANGE.min}
             max={DEAD_ZONE_RANGE.max}
@@ -156,7 +163,7 @@ export default function ActuationPage({ device }: ActuationPageProps) {
           />
           {device.info.supportsTopDeadZone && (
             <SliderField
-              label="Top dead zone"
+              label="Dead zone (top)"
               value={topDeadZoneValue}
               min={DEAD_ZONE_RANGE.min}
               max={DEAD_ZONE_RANGE.max}
@@ -174,8 +181,9 @@ export default function ActuationPage({ device }: ActuationPageProps) {
           description="Live key-travel readout, polled from the keyboard."
           action={<Switch checked={liveOn} onCheckedChange={setLiveOn} />}
         >
-          <p className="text-xs text-muted-foreground">
-            {liveOn ? "Polling live travel…" : "Enable to see a live bar under pressed keys."}
+          <p className="label-mono text-muted-foreground">Live travel [{liveOn ? "ON" : "OFF"}]</p>
+          <p className="text-[13px] leading-snug text-muted-foreground">
+            {liveOn ? "Polling every 100 ms — each key's bar tracks how far it is pressed." : "Enable to drive every key's bar from the board instead of its configured point."}
           </p>
         </SettingCard>
       </div>
