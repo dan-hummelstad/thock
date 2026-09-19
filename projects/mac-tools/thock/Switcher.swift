@@ -420,7 +420,6 @@ final class SwitcherController {
     // ponytail: launch rows borrow the CGWindowID id space from the top; real ids are small.
     private static let launchID: CGWindowID = 0xFFFF_0000
     private var searchQuery = ""
-    private var collapseWork: DispatchWorkItem?
 
     private let groups = WindowGroups()
     private var activeGroup = 1
@@ -465,6 +464,16 @@ final class SwitcherController {
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.contentView = NSHostingView(rootView: BlobView(model: model))
+        // Ordered in for life, never orderOut. A canJoinAllSpaces window that's ordered out
+        // gets re-tagged by the window server to the Space it was last shown on; ordered back
+        // in after a Space switch it came up on the *old* Space, or under the new Space's
+        // stack. Collapsed, the blob draws at opacity 0 and ignores the mouse, so keeping the
+        // panel resident costs nothing visible — the notch-app approach.
+        panel.orderFrontRegardless()
+        // Activating an off-Space window reorders the destination Space's stack and drops the
+        // panel behind the very window we switched to (mid morph-out). AX reports that focus
+        // change; re-assert front on it. Cheap and idempotent when already front.
+        manager.onWindowFocus = { [weak self] in self?.panel.orderFrontRegardless() }
         model.onPick = { [weak self] in self?.pick($0) }
         model.onPickTab = { [weak self] in
             self?.model.tabSelected = $0
@@ -492,7 +501,6 @@ final class SwitcherController {
     }
 
     func expand(byHotkey: Bool, sticky: Bool = false) {
-        collapseWork?.cancel(); collapseWork = nil
         guard !isExpanded else { return }
         allItems = manager.windows()
         items = allItems
@@ -815,22 +823,6 @@ final class SwitcherController {
         searchQuery = ""; model.searchQuery = ""
         model.selected = 0                      // reset so the next open doesn't animate a scroll from a stale index
         model.tabSelected = 0
-        // Keep the blob on top while it morphs out — even across a Space-slide. Activating an
-        // off-Space window reorders the destination Space's window stack and drops this panel
-        // behind the very window we switched to; so re-assert front across the ~0.45s slide,
-        // then hide. On same-Space collapses the panel is already front, so these are no-ops.
-        keepFrontThenHide(ticks: 6, interval: 0.08)   // ~0.48s > the ~0.45s slide
-    }
-
-    /// Re-order the panel front `ticks` times, then order it out. The chain hangs off
-    /// `collapseWork`, so a re-open mid-collapse (expand() cancels it) stops it cleanly.
-    /// ponytail: fixed re-front ticks, not a "Space settled" signal — there isn't one.
-    private func keepFrontThenHide(ticks: Int, interval: Double) {
-        guard ticks > 0 else { panel.orderOut(nil); return }
-        panel.orderFrontRegardless()
-        let work = DispatchWorkItem { [weak self] in self?.keepFrontThenHide(ticks: ticks - 1, interval: interval) }
-        collapseWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + interval, execute: work)
     }
 
     private func installFrame() {

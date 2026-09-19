@@ -374,8 +374,8 @@ func runSelfTestIfRequested() {
     // Merge dedupes by window id: the AX entry wins for a current-Space window; a
     // same-app window with a different id (another Space) is kept. id 1 is the AX/
     // SkyLight twin (dropped), 9 is app 11's other-Space window (kept).
-    func wi(_ id: CGWindowID, pid: pid_t = 0, min: Bool = false) -> WindowInfo {
-        WindowInfo(id: id, pid: pid, title: "", appName: "", icon: nil, minimized: min, axWindow: nil)
+    func wi(_ id: CGWindowID, pid: pid_t = 0, min: Bool = false, on: Bool = false) -> WindowInfo {
+        WindowInfo(id: id, pid: pid, title: "", appName: "", icon: nil, minimized: min, axWindow: nil, onScreen: on)
     }
     assert(WindowManager.merge([wi(1, pid: 10)],
                                [wi(1, pid: 10), wi(9, pid: 11), wi(5, pid: 12)]).map { $0.id } == [1, 9, 5],
@@ -386,6 +386,16 @@ func runSelfTestIfRequested() {
            "AX-only window dropped as a helper; minimized AX-only window kept")
     assert(WindowManager.merge([wi(1), wi(7)], []).map { $0.id } == [1, 7],
            "no SkyLight (symbols gone) → AX list passes through unfiltered")
+    // AX vetoes SkyLight on the current Space: Arc's on-screen per-tab helper windows (3) are
+    // unknown to AX, which did answer for Arc → helper; an on-screen window of an app AX
+    // returned nothing for (4, pid 20) keeps the backstop; off-screen = other Space (5).
+    let sky = [wi(1, pid: 10), wi(3, pid: 10, on: true), wi(4, pid: 20, on: true), wi(5, pid: 10)]
+    let helpers = WindowManager.helpers([wi(1, pid: 10)], sky)
+    assert(helpers == [3], "on-screen SkyLight-only window of an AX-answering app is a helper")
+    assert(WindowManager.merge([wi(1, pid: 10)], sky, helpers: helpers).map { $0.id } == [1, 4, 5],
+           "remembered helper dropped even when (from another Space) it's off-screen")
+    assert(WindowManager.merge([], [wi(3, pid: 10)], helpers: helpers).isEmpty,
+           "helper stays dropped once its app is off-Space")
 
     // Global MRU: recently-focused windows lead in MRU order (3, then 1), regardless of Space;
     // windows never focused since launch (2, 4) fall to the bottom in input order.
@@ -462,7 +472,7 @@ func runSelfTestIfRequested() {
     // Switcher search: token-AND, case-insensitive, over app name + window title; empty = all.
     let sw = [wi(1, pid: 1), wi(2, pid: 2), wi(3, pid: 3)].enumerated().map { i, w -> WindowInfo in
         let (app, title) = [("Safari", "Inbox — Mail"), ("Xcode", "Switcher.swift"), ("Notes", "Groceries")][i]
-        return WindowInfo(id: w.id, pid: w.pid, title: title, appName: app, icon: nil, minimized: false, axWindow: nil)
+        return WindowInfo(id: w.id, pid: w.pid, title: title, appName: app, icon: nil, minimized: false, axWindow: nil, onScreen: false)
     }
     assert(SwitcherController.search(sw, "").count == 3, "empty query keeps all")
     assert(SwitcherController.search(sw, "SAF").map(\.appName) == ["Safari"], "case-insensitive app-name match")

@@ -63,11 +63,15 @@ struct WindowInfo {
     let icon: NSImage?
     let minimized: Bool
     let axWindow: AXUIElement?   // nil for windows on other Spaces (AX can't see them)
+    let onScreen: Bool           // kCGWindowIsOnscreen; AX windows always are
 }
 
 final class WindowManager {
     private var mru: [CGWindowID] = []   // most-recent first — a true global MRU across all Spaces
+    private var helpers: Set<CGWindowID> = []
     private var observers: [pid_t: AXObserver] = [:]
+    /// Fired on every AX window focus/creation event, after the MRU bump.
+    var onWindowFocus: (() -> Void)?
 
     var mruOrder: [CGWindowID] { mru }
 
@@ -90,7 +94,9 @@ final class WindowManager {
 
     /// All standard app windows across every Space, sorted by the global MRU.
     func windows() -> [WindowInfo] {
-        let merged = Self.merge(axWindows(), allSpaceWindows())
+        let ax = axWindows(), all = allSpaceWindows()
+        helpers.formUnion(Self.helpers(ax, all))
+        let merged = Self.merge(ax, all, helpers: helpers)
         let order = Self.ordered(merged.map(\.id), mru: mru)
         let pos = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($1, $0) })
         return merged.sorted { pos[$0.id]! < pos[$1.id]! }
@@ -119,6 +125,7 @@ final class WindowManager {
     /// AX event → bump. `element` is the created window for creation events and the app for
     /// focus-changed events, so try it directly, then fall back to the app's focused window.
     private func observed(_ element: AXUIElement) {
+        defer { onWindowFocus?() }
         var wid: CGWindowID = 0
         if _AXUIElementGetWindow(element, &wid) == .success, wid != 0 { bump(wid); return }
         var v: AnyObject?
@@ -202,7 +209,7 @@ final class WindowManager {
                     id: wid, pid: app.processIdentifier,
                     title: title.isEmpty ? (app.localizedName ?? "") : title,
                     appName: app.localizedName ?? "",
-                    icon: app.icon, minimized: (m as? Bool) ?? false, axWindow: axWin))
+                    icon: app.icon, minimized: (m as? Bool) ?? false, axWindow: axWin, onScreen: true))
             }
         }
         return result
@@ -234,7 +241,8 @@ final class WindowManager {
                 id: wid, pid: pid,
                 title: name.isEmpty ? (app.localizedName ?? "") : name,
                 appName: app.localizedName ?? "",
-                icon: app.icon, minimized: false, axWindow: nil))
+                icon: app.icon, minimized: false, axWindow: nil,
+                onScreen: (w[kCGWindowIsOnscreen as String] as? Bool) ?? false))
         }
         return out
     }
@@ -250,12 +258,30 @@ final class WindowManager {
     /// rows titled with the bare app name that raise into nothing. SkyLight's visible-window
     /// list contains none of them, so an AX window it doesn't know is dropped. Minimized
     /// windows are the exception: they're legitimately absent from a *visible* list.
-    static func merge(_ ax: [WindowInfo], _ allSpace: [WindowInfo]) -> [WindowInfo] {
+    ///
+    /// And AX vetoes SkyLight on the current Space (`helpers`, remembered across calls).
+    static func merge(_ ax: [WindowInfo], _ allSpace: [WindowInfo], helpers: Set<CGWindowID> = []) -> [WindowInfo] {
         guard !allSpace.isEmpty else { return ax }   // SkyLight unavailable → AX-only, unfiltered
         let live = Set(allSpace.map { $0.id })
         let real = ax.filter { live.contains($0.id) || $0.minimized }
         let have = Set(real.map { $0.id })
-        return real + allSpace.filter { !have.contains($0.id) }
+        return real + allSpace.filter { !have.contains($0.id) && !helpers.contains($0.id) }
+    }
+
+    /// Helper windows caught in the act: on screen per SkyLight yet absent from AX for an app
+    /// AX did answer for — AX sees every real current-Space window. Arc keeps one nameless
+    /// 600×600 layer-0 window per tab (stacked under the real one, same Space, same level, no
+    /// SkyLight tell), which passed the size test and, unknown to AX, got appended as an
+    /// "other-Space" row titled "Arc" per tab. From another Space they're off-screen and look
+    /// exactly like real other-Space windows, so the caller keeps the ids: a helper never
+    /// becomes a real window, and ids don't recycle within a session.
+    /// ponytail: a helper created while its app is off-Space shows until you next visit that
+    /// Space. "AX answered" = any AX window for that pid, so an app whose only windows carry a
+    /// non-standard subrole keeps the SkyLight backstop; one mixing good and odd subroles
+    /// loses the odd ones — loosen isSwitchable for that app if it ever shows up.
+    static func helpers(_ ax: [WindowInfo], _ allSpace: [WindowInfo]) -> Set<CGWindowID> {
+        let axIds = Set(ax.map { $0.id }), axPids = Set(ax.map { $0.pid })
+        return Set(allSpace.filter { $0.onScreen && !axIds.contains($0.id) && axPids.contains($0.pid) }.map { $0.id })
     }
 
     func raise(_ win: WindowInfo) {
