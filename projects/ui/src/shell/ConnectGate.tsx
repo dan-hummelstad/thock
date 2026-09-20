@@ -21,8 +21,8 @@ export function ConnectGate({ status, error, onRetry, onBack, children }: Connec
   return (
     <div className="flex h-screen items-center justify-center bg-crosshair-grid">
       <div className="corner-ticks w-[420px] max-w-[calc(100%-2rem)] border border-border bg-panel p-6">
-        {/* One of Anton's three homes (§8 A4) — never below 28px. */}
-        <h2 className="font-display text-3xl uppercase text-foreground">{failed ? "No link" : "Searching"}</h2>
+        {/* One of the display face’s three homes (§8 A4) — never below 28px. */}
+        <h2 className="type-display text-3xl text-foreground">{failed ? "No link" : "Searching"}</h2>
         <p
           className={cn(
             "label-mono mt-1 overflow-hidden whitespace-nowrap motion-safe:animate-typewriter",

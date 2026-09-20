@@ -38,17 +38,20 @@ export function CommandBar<R extends string>({
 }: CommandBarProps<R>) {
   const Icon = device.icon
   return (
-    <header className="flex h-13 shrink-0 items-center gap-4 border-b border-border bg-panel px-3">
+    <header className="flex h-13 shrink-0 items-center gap-4 border-b border-border bg-panel pl-0">
       {/* ponytail: logo-mark.svg paints with currentColor and an <img> can't inherit that, so the mark
           is masked into a themed block instead of shipping a second white-inked file. The url() must
           stay double-quoted — Vite inlines the asset as a data: URI full of single quotes and commas.
           Ceiling: a two-colour mark needs the real SVG inlined (or a second asset). */}
-      <span
-        aria-hidden
-        title="thock"
-        className="size-6 shrink-0 bg-foreground"
-        style={{ maskImage: `url("${logoMark}")`, maskSize: "contain", maskRepeat: "no-repeat", maskPosition: "center" }}
-      />
+      {/* The mark gets the site's own 1:1 logo cell — a bordered square at the bar's left end. */}
+      <span className="flex h-full w-13 shrink-0 items-center justify-center border-r border-border">
+        <span
+          aria-hidden
+          title="thock"
+          className="size-6 bg-foreground"
+          style={{ maskImage: `url("${logoMark}")`, maskSize: "contain", maskRepeat: "no-repeat", maskPosition: "center" }}
+        />
+      </span>
       {/* device identity + profile group are both StatChip rows; the profile group's `gap-px bg-border
           p-px` wrapper turns its gutters into the Vault's hairline dividers. */}
       <StatChip
@@ -71,7 +74,7 @@ export function CommandBar<R extends string>({
           </StatChip>
         ))}
       </div>
-      <nav className="ml-auto flex shrink-0 items-center gap-2">
+      <nav className="ml-auto flex h-full shrink-0 items-center gap-2">
         {tabs.map((t) => (
           <span key={t.id} className="flex items-center gap-1">
             {t.hint && <Kbd className="max-lg:hidden">{t.hint}</Kbd>}
@@ -92,17 +95,17 @@ export function CommandBar<R extends string>({
             </button>
           </span>
         ))}
+        {/* The exit action is the bar's right-end cell (the site's BUY NOW slot) — hairline, not acid:
+            the acid budget (§8 A1) belongs to Apply on this screen. Hover inverts to acid like every link. */}
         <button
           type="button"
           onClick={onDisconnect}
           className={cn(
-            "label-mono border px-3 py-1.5 transition-colors duration-120",
-            isMock
-              ? "border-orange-text text-orange-text hover:bg-hover"
-              : "border-border text-muted-foreground hover:bg-hover hover:text-foreground"
+            "label-mono ml-2 flex h-full items-center gap-2 border-l border-border px-5 transition-colors duration-120 hover:text-acid",
+            isMock ? "text-orange-text" : "text-muted-foreground"
           )}
         >
-          {isMock ? "EXIT DEMO ▸" : "DISCONNECT ▸"}
+          {isMock ? "EXIT DEMO" : "DISCONNECT"} <span className="bracket">▸</span>
         </button>
       </nav>
     </header>

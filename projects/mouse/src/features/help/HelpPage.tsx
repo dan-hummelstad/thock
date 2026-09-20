@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@thock/ui/components/u
 export default function HelpPage() {
   return (
     <div className="flex max-w-2xl flex-col gap-4">
-      {/* One of Anton's three homes (thock-style-plan §8 A4): landing, ConnectGate, and this title. */}
+      {/* One of the display face’s three homes (thock-style-plan §8 A4): landing, ConnectGate, and this title. */}
       <div className="flex flex-wrap items-baseline gap-3">
-        <h2 className="font-display text-3xl uppercase text-foreground">Codex</h2>
+        <h2 className="type-display text-3xl text-foreground">Codex</h2>
         <span className="label-mono ml-auto text-muted-foreground">4 ENTRIES</span>
       </div>
 

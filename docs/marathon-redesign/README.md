@@ -1,7 +1,8 @@
 # marathon-redesign
 
 A MARATHON-flavoured reskin of thock: dark-only palette, one acid accent, 0px radius, tracked mono chrome.
-Planned and **executed on 2026-09-19** (phases P0–P5). These docs are the spec the code was built to; where a
+Planned and **executed on 2026-09-19** (phases P0–P5), then re-cut on **2026-09-20** against the official website
+(marathonthegame.com — mood-board §f, styling-plan §8, thock-style-plan §5 + A7/A8; captures in `site/`). These docs are the spec the code was built to; where a
 worker deviated, the reason is in a `// ponytail:` comment at the call site. Read in order:
 
 1. `mood-board.md` — why it looks like this. References, extracted vocabulary, palette + type boards, do/don't.

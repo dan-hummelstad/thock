@@ -1,5 +1,3 @@
-import iconDemo from "../assets/marathon/icon-demo.svg"
-import iconUsb from "../assets/marathon/icon-usb.svg"
 import { Button } from "../components/ui/button"
 import { cn } from "../lib/utils"
 
@@ -23,44 +21,46 @@ export interface PosterProps {
 }
 
 /**
- * Landing device poster: one hero colour field, the dithered device plate, one acid CTA (§8 A1).
- * The art sits in a `flex-1 min-h-0` slot so the whole poster fits whatever height the page gives it.
- * ponytail: the marathon glyphs paint with `currentColor`, which resolves to black inside an
- * `<img>` — `invert` is how a mark goes ink-white on the colour field. Ceiling: any glyph that
- * needs a third colour has to be inlined or masked instead.
+ * Landing device poster, cut the way marathonthegame.com cuts a feature block: the colour field is the
+ * media, a void caption panel overlaps its bottom-right corner (eyebrow / wide title / body), and the
+ * CTA blocks hang off the panel's bottom edge. The one acid fill is CONNECT (§8 A1); RUN DEMO is the
+ * site's white secondary block.
+ * ponytail: below `lg` the panel goes static under the plate instead of overlapping. Ceiling: no
+ * intermediate layout between "overlap" and "stack".
  */
 export function Poster({
   tone, eyebrow, title, art, specs, features, batch, onConnect, onDemo, connectDisabled, className,
 }: PosterProps) {
   return (
-    <article className={cn("flex min-h-0 flex-col gap-3 p-5 text-white", TONE[tone], className)}>
-      <span className="label-mono">{eyebrow}</span>
-      <div className="flex min-h-0 flex-1 items-center justify-center py-2">
-        <img src={art} alt="" aria-hidden className="max-h-full max-w-[80%] object-contain" />
+    <article className={cn("relative flex min-h-0 flex-col overflow-hidden text-white", TONE[tone], className)}>
+      <div className="label-mono flex items-center justify-between p-4">
+        <span>{eyebrow}</span>
+        <span className="opacity-70">BATCH {batch}</span>
       </div>
-      <h2 className="font-display text-3xl leading-none uppercase">{title}</h2>
-      <p className="label-mono">{specs.join(" · ")}</p>
-      <p className="label-mono opacity-80">{features.join("  ")}</p>
-      <div className="flex flex-col gap-2 pt-1">
-        <Button
-          size="lg"
-          disabled={connectDisabled}
-          onClick={onConnect}
-          className={cn("h-11 w-full", connectDisabled && "cursor-not-allowed bg-raised text-muted-foreground disabled:opacity-100")}
-        >
-          <img src={iconUsb} alt="" aria-hidden className={cn("size-4", connectDisabled && "invert")} /> CONNECT
-        </Button>
-        <Button
-          variant="outline"
-          size="lg"
-          onClick={onDemo}
-          className="w-full border-white/40 text-white hover:bg-white/10"
-        >
-          <img src={iconDemo} alt="" aria-hidden className="size-4 invert" /> RUN DEMO
-        </Button>
-        {connectDisabled && <p className="label-mono">ERR: WEBHID UNAVAILABLE — USE CHROME OR EDGE</p>}
+      {/* On lg the plate keeps the top ~60% of the field and hugs the left edge, so the caption panel
+          overlapping the bottom-right corner only ever covers colour, never the device. */}
+      <div className="flex min-h-0 flex-1 items-center justify-center px-6 pb-6 lg:items-start lg:justify-start">
+        <img src={art} alt="" aria-hidden className="max-h-full max-w-full object-contain lg:max-h-[60%]" />
       </div>
-      <span className="label-mono opacity-70">BATCH {batch}</span>
+      <div className="flex flex-col gap-2 bg-void px-5 pt-5 text-foreground lg:absolute lg:right-0 lg:bottom-0 lg:w-[52%]">
+        <p className="label-mono text-acid">{specs.join(" · ")}</p>
+        <h2 className="type-display text-[clamp(26px,2.2vw,36px)]">{title}</h2>
+        <p className="label-mono text-muted-foreground">{features.join(" / ")}</p>
+        {connectDisabled && <p className="label-mono text-red-text">ERR: WEBHID UNAVAILABLE — USE CHROME OR EDGE</p>}
+        <div className="-mx-5 mt-3 flex border-t border-border">
+          <Button
+            size="lg"
+            disabled={connectDisabled}
+            onClick={onConnect}
+            className={cn("min-w-0 flex-1", connectDisabled && "cursor-not-allowed bg-raised text-muted-foreground disabled:opacity-100")}
+          >
+            CONNECT <span data-icon="inline-end" className="bracket">↗</span>
+          </Button>
+          <Button size="lg" variant="inverse" onClick={onDemo} className="min-w-0 flex-1 border-l-border">
+            RUN DEMO <span data-icon="inline-end" className="bracket">▶</span>
+          </Button>
+        </div>
+      </div>
     </article>
   )
 }

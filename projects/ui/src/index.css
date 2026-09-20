@@ -3,14 +3,15 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
-@import "@fontsource/anton";
+/* wdth.css, not index.css: the display face is Archivo at its 125% width — the site's wide grotesk. */
+@import "@fontsource-variable/archivo/wdth.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
     --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
-    --font-display: 'Anton', 'Geist Variable', sans-serif;
+    --font-display: 'Archivo Variable', 'Geist Variable', sans-serif;
     --font-heading: var(--font-display);
 
     /* shadcn contract — names unchanged, values remapped in :root */
@@ -129,6 +130,8 @@
     }
     body {
         @apply bg-background font-sans text-foreground;
+        /* marathonthegame.com sets slashed zeros on body — every 0 in the tool reads as a digit. */
+        font-variant-numeric: slashed-zero;
     }
     /* ponytail: one rule gives every raw <label>/<kbd> the mono chrome voice; components add
        size + tracking with label-mono. Ceiling: if a prose <label> ever needs sans, scope this
@@ -163,7 +166,7 @@
     font-family: var(--font-mono);
     font-size: 0.6875rem;
     line-height: 1.2;
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums slashed-zero;
     letter-spacing: 0.08em;
     text-transform: uppercase;
 }
@@ -241,4 +244,27 @@
         0 0, 100% 0, 100% 92%, 96% 92%, 92% 100%, 88% 90%, 84% 100%,
         80% 88%, 76% 100%, 72% 92%, 0 96%
     );
+}
+
+/* The site's "super type": Archivo pushed to its widest (wdth 125), heavy, tight, 90% leading —
+   the stand-in for Marathon Shapiro Wide. Size is the caller's (text-3xl … clamp()). */
+@utility type-display {
+    font-family: var(--font-display);
+    font-stretch: 125%;
+    font-weight: 750;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+}
+
+/* `[↗]` / `[⌄]` — the site wraps every nav glyph in square brackets. Put the glyph inside. */
+@utility bracket {
+    &::before { content: "["; }
+    &::after  { content: "]"; }
+}
+
+/* The footer's 45° acid hazard cell. ponytail: acid + void baked in; it is decoration on a dark
+   page, not a state. Ceiling: a second theme needs a second gradient. */
+@utility bg-hazard {
+    background-image: repeating-linear-gradient(-45deg, var(--acid) 0 14px, var(--void) 14px 28px);
 }

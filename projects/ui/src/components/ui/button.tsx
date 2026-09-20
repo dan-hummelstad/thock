@@ -14,7 +14,11 @@ const buttonVariants = cva(
         default:
           "bg-primary text-primary-foreground hover:bg-[color-mix(in_oklch,var(--primary),black_14%)]",
         outline:
-          "border-border text-foreground hover:border-foreground/30 hover:bg-accent aria-expanded:border-foreground/30 aria-expanded:bg-accent",
+          "border-border text-foreground hover:border-acid hover:text-acid aria-expanded:border-acid aria-expanded:text-acid",
+        // marathonthegame.com's secondary block (`EXPLORE ↗`): white field, black label, and the
+        // hover *inverts* to void + acid instead of tinting. Same inversion drives `outline` above.
+        inverse:
+          "bg-foreground text-background hover:border-acid hover:bg-background hover:text-acid",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-hover aria-expanded:bg-hover",
         ghost:
@@ -31,7 +35,8 @@ const buttonVariants = cva(
           "h-8 gap-1.5 px-3 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
         xs: "h-6 gap-1 px-2 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-7 gap-1 px-2.5 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 gap-1.5 px-4 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        // The site's CTA block: 52px tall, ≥200px wide, label left, glyph right.
+        lg: "h-13 min-w-[200px] gap-3 pr-4 pl-5 has-data-[icon=inline-end]:justify-between",
         icon: "size-8",
         "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-7",

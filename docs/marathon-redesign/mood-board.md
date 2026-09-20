@@ -46,7 +46,7 @@ The MARATHON look is **flat, institutional, tracked, acid, and deadpan**. Flat: 
 | Colour | Acid green + lavender-grey + black + cobalt glitch blocks. Three colours, no more. |
 | Type | Huge condensed caps set so tight they half-obscure themselves; tiny tracked mono captions; `E S C : < S E L F : < G O D >` as ornament. |
 | Graphic devices | Glitch pixel blocks eating the figure's edge; one large "+"; a two-swatch registration chip; the rotated wordmark. |
-| thock takes | **Landing hero only**: Anton set large, type passing behind the dithered silhouette, rotated margin wordmark, one glitch block. Nothing here enters the tool. |
+| thock takes | **Landing hero only**: the display face set large, type passing behind the dithered silhouette, rotated margin wordmark, one glitch block. Nothing here enters the tool. |
 
 ---
 
@@ -95,6 +95,61 @@ The MARATHON look is **flat, institutional, tracked, acid, and deadpan**. Flat: 
 | [Vercel — Geist](https://vercel.com/geist) | Steal: mono headings on a clean sans, negative tracking at display size, a subtle grid. Avoid: 6px radii and SaaS warmth. |
 | [Awwwards — Brutalism](https://www.awwwards.com/awwwards/collections/brutalism/) | Steal: hero-scale type and broken grids — **landing only**. Avoid: the rest; stunts that would exhaust across fourteen pages. |
 
+### (f) marathonthegame.com — the website layer (captured 2026-09-20)
+
+The four in-game images above are the *tool's* references. The official site is the *web* reference — how
+Bungie lays the same identity onto a scrolling page — and it is where the landing page and the app frame
+now take their grammar from. Six 1440-wide captures live in `site/` (`site-hero`, `site-news`,
+`site-season-band`, `site-surface-data`, `site-caption-panel`, `site-footer`); tokens below are read
+straight out of the shipped CSS (`/_next/static/chunks/*.css`), not eyeballed.
+
+**Tokens the site actually ships.**
+
+| Site variable | Value | Ours |
+|---|---|---|
+| `--background` | `#000` | `void` `#08090b` — kept; the tool needs the charcoal ladder above pure black |
+| `--surface` | `#1c1c1c` | `panel` `#16171a` |
+| `--foreground` / `--foreground-muted` | `#fff` / `#717171` | `ink` / `dim` (`#a9aeb7` — ours is lighter on purpose; `#717171` fails AA at 11px) |
+| `--primary` | `#c0fe04` | `acid` `#c2fd0a` (ΔE 0.41) |
+| `--error` | `#f24723` | `red-fill`/`red-text` |
+| season band | `#5200FF` | `purple-fill` — not used on the landing |
+| `--font-display` | Marathon Shapiro Wide (custom, extended grotesk) | **Archivo Variable @ wdth 125** — replaces Anton |
+| `--font-stylized-mono` | PP Fraktion Mono 500 | Geist Mono Variable |
+| `--font-decorative` | KH Interference (nav/detail labels) | Geist Mono — one mono, not two |
+| body | TT Interphases Pro | Geist |
+| `--text-super-type-md` | `7.6875rem`, line-height 80–95%, `-0.02em` | `type-display` at `clamp(48px, 7vw, 104px)` |
+| `--text-heading-1/2/3` | `3.5625rem` / `2.4375rem` / `1.5rem`, leading 85–95% | poster title `clamp(26px, 2.2vw, 36px)`, CODEX/ConnectGate `text-3xl` |
+| `--text-detail` / `--text-detail-sm` | `.9375rem` / `.75rem` | `label-mono` 11px — the tool is denser than a marketing page |
+| `border-radius` | `0` everywhere | `--radius: 0px` |
+| `font-variant-numeric` | `slashed-zero` on body | adopted verbatim |
+| gutters | `px-2.5` (10px!) mobile, `px-5` desktop, `gap-px` cell grids | `gap-1` poster gutter, `gap-px` footer cells |
+
+**Patterns worth stealing** (each one is in the vocabulary table below with where it landed):
+
+1. **The bar.** 60px, pure black, a bordered 1:1 logo cell at the far left, mono uppercase links each
+   ending in a bracketed glyph — `NEWS [↗]`, `ENGLISH [⌄]` — and a solid acid `BUY NOW` cell at the far
+   right that is *part of the bar*, not a button floating in it.
+2. **Eyebrow / super type / body.** Every section opens with a small mono line, then one or two lines
+   of enormous wide type, then sans body. Never a mid-size heading.
+3. **Caption panel + corner CTA.** Feature blocks are a full-bleed image with a black panel overlapping
+   its bottom-right corner (eyebrow, wide title, body), and a white `WATCH ON YOUTUBE ↗` block hanging
+   off the panel's own bottom-right corner. The CTA is attached to the panel, not placed inside it.
+4. **Block buttons.** `h-13 min-w-[200px]`, hairline or filled, label left and glyph right, and hover
+   *inverts* (white → black field, acid text and border) instead of tinting.
+5. **The footer is a table.** Hairline cells with 1px gaps, a `(10)` count cell and a `SOCIAL MEDIA`
+   label cell outlined in acid, link lists prefixed `[icon]`, a big wordmark bottom-left, and one empty
+   cell filled with 45° acid hazard stripes because an empty cell is a feature.
+6. **Datasheet blocks.** `SURFACE DATA` is columns of spaced numerals over 9px labels, with a checker
+   glyph and `RESTRICTED TO CLEARED PERSONNEL` — the poster-wall voice rendered as HTML.
+7. **Registration marks around media** — grey `#717171` 6px L-corners with a 2px `#555` dot at centre
+   (the `corner-ticks` idea, confirmed).
+8. **Link hover** is a draw-on SVG underline (`stroke-dashoffset 18 → 0`, 200–300ms) plus
+   `hover:text-primary`. We take the colour change; the SVG underline is skipped.
+
+**Left on the site.** The 100vh video hero (we have nothing to film), the purple Season-2 band and its
+carousel (no seasonal content), the vertical rotated wordmark column (it eats 60px the posters need on a
+one-screen page), the two-font mono system, and every marketing-scale font size.
+
 ### (e) Competitor configurators — what to beat
 
 | Reference | Steal / avoid |
@@ -127,6 +182,16 @@ The MARATHON look is **flat, institutional, tracked, acid, and deadpan**. Flat: 
 | Torn edges / glitch blocks | Poster colour boundaries; fan-poster figure | **Landing-only**, plus one ≤200ms one-shot on Apply success |
 | `ERR` glyph | Poster `ERR ERR ERR` repetition | **String prefix only** (`ERR: DPI OUT OF RANGE`); the pixel mascot is landing-only |
 | Pixel mascots | Tickmilk figures, smiley skulls | **Never** in the tool — too cute; undercuts the deadpan |
+| *From the website (§f, 2026-09-20)* | | |
+| Bracketed glyphs `[↗]` `[⌄]` `[▶]` | Every nav link and footer link on marathonthegame.com | **Tool chrome** — `bracket` utility; `↗` = leaves the page, `▶` = runs something, `⌄` = opens a menu |
+| Square logo cell | The 60×60 bordered cell at the bar's left end, and the action cell at its right | **Tool chrome** — CommandBar's mark cell + `DISCONNECT [▸]` end cell; landing bar likewise |
+| Super type | `TAU CETI WORLD`, `FROM THE CREATORS OF…` at 123px, 80–95% leading, −0.02em, wide grotesk | **Landing + three headings** — `type-display` |
+| Eyebrow → heading → body | `A PvPvE SURVIVAL EXTRACTION FPS` over the super type; `DEATH HANGS ABOVE` over `THE UESC MARATHON` | **Landing** hero and every poster caption panel |
+| Caption panel + block CTA | A void panel overlapping a feature image's bottom-right corner, with `WATCH ON YOUTUBE ↗` as a white block hanging off its edge | **Landing-only** — `Poster` |
+| Block buttons | 52px tall, ≥200px, label left / glyph right, hover *inverts* to void + acid | **Tool chrome** — `Button size="lg"`, `outline`/`inverse` hover |
+| Cell-table footer | Hairline `gap-px` grid; `(10)` count cell and `SOCIAL MEDIA` cell outlined in acid; bracketed link list; a 45° acid hazard cell filling an otherwise empty slot | **Landing-only** — footer; `bg-hazard` |
+| Datasheet block | `TAU CETI IV // SURFACE DATA`: columns of spaced mono numbers over tiny labels, `RESTRICTED TO CLEARED PERSONNEL` warnings | **Reference for StatChip/spec rows** — poster specs line, mouse Battery card |
+| Slashed zero | `font-variant-numeric: slashed-zero` on `body` | **Global** — every 0 in the tool |
 
 ---
 
@@ -165,7 +230,7 @@ Locked in D4; candidates and payloads from discovery/05.
 
 | Role | Face | Package | Size | Used for | Why |
 |---|---|---|---|---|---|
-| Display | **Anton** | `@fontsource/anton` 5.3.0 | 18.6 KB | **Three surfaces only**: landing hero `clamp(56px, 9vw, 112px)` + poster titles ~36px, the ConnectGate title ~30px, the CODEX page title ~30px. Uppercase, −0.01em. Nothing below 28px | Closest free Druk substitute; stands in for Shapiro Wide. Mud at 11px, which is why the floor is 28px |
+| Display | **Archivo Variable @ wdth 125** (`type-display`) | `@fontsource-variable/archivo` 5.3.0, `wdth.css` | 88 KB (latin wdth face; Anton was 18.6 KB) | **Three surfaces only**: landing hero `clamp(48px, 7vw, 104px)` + poster titles ~36px, the ConnectGate title ~30px, the CODEX page title ~30px. Uppercase, weight 750, −0.02em, 90% leading. Nothing below 24px | *Swapped in on 2026-09-20 after the website pass (§f).* The site's headline face is **Marathon Shapiro Wide** — an *extended* geometric grotesk — and Anton (condensed) pulled the opposite way. Archivo's width axis at 125% is the closest free stand-in; one package replaces one package |
 | UI sans | **Geist Variable** | already installed (5.3.0) | 0 net-new | Body copy, 13–14px | Already in the repo; neutral grotesque; ponytail-correct |
 | Mono | **Geist Mono Variable** | `@fontsource-variable/geist-mono` 5.3.0 | 23.1 KB | Every label, tab, keycap, value, caption, index prefix — **and every in-app heading**; 11px, 0.08em, `tabular-nums` | Same metrics as the sans, so labels read machined; stands in for PP Fraktion Mono |
 | Serif (optional) | Bodoni Moda | `@fontsource-variable/bodoni-moda` | 25.9 KB | Landing flourish only, if at all | Its opsz axis thins to hairline at display size — the posters' ironic Didone |
@@ -195,7 +260,7 @@ Net new ≈ 42 KB, or ≈ 68 KB with the serif, against a 400 KB budget.
 1. Don't use the posters' bright fields as a page background — accent blocks only.
 2. Don't add glow, bloom, scanlines or shadow. Ever.
 3. Don't use a pixel font for real UI text.
-4. Don't let Anton near a control label or a value.
+4. Don't let the display face (Archivo Wide) near a control label or a value.
 5. Don't put fake batch numbers, rulers or swatch strips near a real number — a decorative `N3` beside a live DPI reading is a usability bug.
 6. Don't encode tier or state in colour alone.
 7. Don't use orange, red or magenta *text* below 14px semibold — APCA caps them near Lc47.

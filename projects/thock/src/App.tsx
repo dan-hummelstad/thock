@@ -1,11 +1,7 @@
 import { lazy, Suspense, useState } from "react"
-import glyphErr from "@thock/ui/assets/marathon/glyph-err.svg"
 import logoMark from "@thock/ui/assets/marathon/logo-mark.svg"
 import artKeyboard from "@thock/ui/assets/marathon/art-keyboard.svg"
 import artMouse from "@thock/ui/assets/marathon/art-mouse.svg"
-import registrationMark from "@thock/ui/assets/marathon/registration-mark.svg"
-import ruler from "@thock/ui/assets/marathon/ruler.svg"
-import swatchStrip from "@thock/ui/assets/marathon/swatch-strip.svg"
 import { Poster } from "@thock/ui/shell/Poster"
 
 // The device picker below is the natural code-split point: a visitor only ever needs one of these two
@@ -27,22 +23,10 @@ function initialSelection(): Selection | null {
 }
 
 const hidAvailable = typeof navigator !== "undefined" && "hid" in navigator
+const SOURCE_URL = "https://github.com/dan-hummelstad/thock"
+const WEBHID_URL = "https://developer.mozilla.org/en-US/docs/Web/API/WebHID_API"
 
 const loading = <div className="flex h-screen items-center justify-center bg-void label-mono text-muted-foreground">LOADING…</div>
-
-/** The edge ruler, tiled at its native 200×14 rather than stretched — a stretched `N3` is a lie about
- * a measuring device. ponytail: background-repeat beats five positioned copies.
- * The url() is quoted because vite inlines this SVG as a data: URI, which is not a legal *unquoted*
- * url() token — React drops the whole declaration if it is. */
-function Ruler() {
-  return (
-    <div
-      aria-hidden
-      className="col-span-12 h-3.5 bg-repeat-x opacity-30 invert"
-      style={{ backgroundImage: `url("${ruler}")` }}
-    />
-  )
-}
 
 export default function App() {
   const [selection, setSelection] = useState(initialSelection)
@@ -65,32 +49,43 @@ export default function App() {
   return (
     // ponytail: the wall is one screen tall on desktop (h-svh, posters take the leftover height);
     // below lg it stacks and scrolls. Ceiling: no landscape-phone layout.
-    <div className="bg-void bg-crosshair-grid lg:h-svh">
-      {/* ponytail: the marathon marks paint with `currentColor`, which is black inside an `<img>` —
-          `invert` is what makes a decorative mark ink-white on the void. Ceiling: a mark that needs a
-          real colour has to be inlined or mask-image'd. */}
-      <div className="mx-auto grid max-w-[1400px] grid-cols-12 gap-1 px-8 py-5 lg:h-full lg:grid-rows-[auto_auto_auto_minmax(0,1fr)_auto_auto]">
-        <header className="col-span-12 flex items-center justify-between pb-2">
-          <span className="flex items-center gap-2 label-mono">
-            <img src={logoMark} alt="" aria-hidden className="size-6 invert" />
-            THOCK
-          </span>
-          <span className="label-mono text-muted-foreground/60">AUTHORIZED: WEBHID</span>
-        </header>
+    <div className="flex flex-col bg-void bg-crosshair-grid lg:h-svh">
+      {/* marathonthegame.com's bar: a 1:1 logo cell, bracketed mono links, and a bordered action cell
+          at the far end. Hairline rather than the site's acid — CONNECT owns the acid on this screen (§8 A1). */}
+      <header className="label-mono flex h-15 shrink-0 items-stretch border-b border-border bg-void">
+        <span className="flex w-15 shrink-0 items-center justify-center border-r border-border">
+          <span aria-hidden className="size-6 bg-foreground" style={{ maskImage: `url("${logoMark}")`, maskSize: "contain", maskRepeat: "no-repeat", maskPosition: "center" }} />
+        </span>
+        <nav className="flex items-center gap-6 px-6">
+          <span>THOCK</span>
+          <a href={SOURCE_URL} target="_blank" rel="noopener" className="flex gap-2 text-muted-foreground hover:text-acid">
+            SOURCE <span className="bracket">↗</span>
+          </a>
+          <a href={WEBHID_URL} target="_blank" rel="noopener" className="flex gap-2 text-muted-foreground hover:text-acid">
+            WEBHID <span className="bracket">↗</span>
+          </a>
+        </nav>
+        <button
+          type="button"
+          onClick={() => setSelection({ device: "keyboard", mode: "demo" })}
+          className="ml-auto flex min-w-[200px] items-center justify-center gap-2 border-l border-border px-8 text-muted-foreground transition-colors duration-120 hover:bg-foreground hover:text-background"
+        >
+          RUN DEMO <span className="bracket">▶</span>
+        </button>
+      </header>
 
-        <Ruler />
-
-        <div className="relative col-span-12 flex items-end gap-6 py-4">
-          <img src={registrationMark} alt="" aria-hidden className="absolute top-4 right-0 size-4 opacity-40 invert" />
-          <h1 className="font-display text-[clamp(44px,6vw,80px)] leading-[0.92] tracking-[-0.01em] uppercase">THOCK</h1>
-          <p className="font-display text-[clamp(22px,3vw,40px)] leading-[0.92] tracking-[-0.01em] text-muted-foreground/60 uppercase">
-            DEVICE CONTROL
-          </p>
-          <p className="ml-auto label-mono text-muted-foreground">TWO DEVICES · NO DRIVERS · NO INSTALL</p>
+      <div className="mx-auto grid min-h-0 w-full max-w-[1400px] flex-1 grid-cols-12 gap-1 px-8 py-5 lg:grid-rows-[auto_minmax(0,1fr)_auto]">
+        {/* The site's section head: small mono eyebrow over one line of wide super type. */}
+        <div className="col-span-12 flex flex-col gap-3 py-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="label-mono text-muted-foreground">DEVICE CONTROL / WEBHID</p>
+            <h1 className="type-display mt-2 text-[clamp(48px,7vw,104px)]">THOCK</h1>
+          </div>
+          <p className="label-mono text-muted-foreground lg:pb-2">(2) UNITS · NO DRIVERS · NO INSTALL</p>
         </div>
 
         <Poster
-          className="col-span-12 min-h-[420px] lg:col-span-6 lg:min-h-0"
+          className="col-span-12 min-h-[480px] lg:col-span-6 lg:min-h-0"
           tone="orange"
           eyebrow="UNIT 01 / KEYBOARD"
           title="SK75 TMR"
@@ -106,7 +101,7 @@ export default function App() {
           onDemo={() => setSelection({ device: "keyboard", mode: "demo" })}
         />
         <Poster
-          className="col-span-12 min-h-[420px] lg:col-span-6 lg:min-h-0"
+          className="col-span-12 min-h-[480px] lg:col-span-6 lg:min-h-0"
           tone="cobalt"
           eyebrow="UNIT 02 / MOUSE"
           title="X2 CRAZYLIGHT MINI"
@@ -119,14 +114,20 @@ export default function App() {
           onDemo={() => setSelection({ device: "mouse", mode: "demo" })}
         />
 
-        <Ruler />
-
-        <footer className="col-span-12 flex items-center gap-4 pt-2">
-          <img src={glyphErr} alt="" aria-hidden className="h-3 opacity-60 invert" />
-          <img src={swatchStrip} alt="" aria-hidden className="h-3" />
-          <span className="ml-auto label-mono text-muted-foreground/60">
+        {/* The site's footer is a hairline cell table: `(n)` count cell + acid-outlined label cell,
+            a bracketed link list, one hazard-striped spacer, legal copy, and the wordmark. */}
+        <footer className="label-mono col-span-12 grid grid-cols-12 gap-px border border-border bg-border">
+          <span className="col-span-1 flex items-center justify-center border border-acid bg-void text-acid">(2)</span>
+          <span className="col-span-2 flex items-center border border-acid bg-void px-4 text-acid">UNITS</span>
+          <nav className="col-span-3 flex flex-col justify-center gap-1.5 bg-void px-4 py-3 text-acid">
+            <a href={SOURCE_URL} target="_blank" rel="noopener" className="flex gap-2 hover:text-foreground"><span className="bracket">↗</span> SOURCE</a>
+            <a href={WEBHID_URL} target="_blank" rel="noopener" className="flex gap-2 hover:text-foreground"><span className="bracket">↗</span> WEBHID API</a>
+          </nav>
+          <span aria-hidden className="col-span-1 bg-hazard" />
+          <p className="col-span-3 flex items-center bg-void px-4 text-muted-foreground/60">
             AUTHORIZED: WEBHID · CHROME/EDGE · NOTHING LEAVES THIS MACHINE
-          </span>
+          </p>
+          <span className="type-display col-span-2 flex items-center justify-end bg-void px-4 text-2xl">THOCK</span>
         </footer>
       </div>
     </div>

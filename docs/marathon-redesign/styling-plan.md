@@ -9,7 +9,7 @@ Executable spec. Every value here is decided; implementers should not re-choose 
 - **Values-only theme diff.** `projects/ui/src/index.css` is rewritten in place; every shadcn variable name survives (`--primary`, `--card`, `--muted-foreground`, …) and only its *value* changes. The one structural edit is deleting the `.dark` block: the app is `<html class="dark">` permanently, so a single `:root` palette is the whole theme (D1). `@custom-variant dark` stays declared and harmless.
 - **Consequence to act on:** because `class="dark"` stays on `<html>`, every `dark:` utility still *fires*. Stock `dark:bg-input/30`, `dark:hover:bg-muted/50`, `dark:aria-invalid:ring-destructive/40` are live overrides today — the restyle must **delete** them, not ignore them.
 - **No new UI library, no new runtime deps.** Still shadcn v4 on `@base-ui/react` 1.7, Tailwind 4.3, cva, tailwind-merge. The new graphic language ships as `@utility` blocks in the one theme file.
-- **Exactly two new packages:** `@fontsource/anton` (18.6 KB) and `@fontsource-variable/geist-mono` (23.1 KB); `@fontsource-variable/geist` stays. No serif, no pixel font (D4). Both names verified on the registry at **5.3.0** (`npm view` on 2026-09-19; the installed `@fontsource-variable/geist` is on the same 5.3.0 line). Note the asymmetry: Anton is a static face, so it is `@fontsource/anton`, **not** `@fontsource-variable/anton` — that package does not exist.
+- **Exactly two new packages:** `@fontsource-variable/archivo` (imported via its `wdth.css` so the width axis ships) and `@fontsource-variable/geist-mono` (23.1 KB); `@fontsource-variable/geist` stays. No serif, no pixel font (D4). All on the **5.3.0** line. *History:* the 2026-09-19 build shipped `@fontsource/anton`; the 2026-09-20 website pass (§8) replaced it with Archivo at `font-stretch: 125%`, because the site's display face is an *extended* grotesk and Anton is condensed.
 - **Geometry is a token, not a per-component edit.** `--radius: 0px` at `:root` cascades through the existing `--radius-sm…4xl` chain, so every `rounded-*` in every app resolves to 0 with zero component churn. Box-shadows go; `ring-*` (a box-shadow in v4) becomes a 1px border.
 
 ---
@@ -24,14 +24,15 @@ Complete proposed contents.
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
-@import "@fontsource/anton";
+/* wdth.css, not index.css: the display face is Archivo at its 125% width — the site's wide grotesk. */
+@import "@fontsource-variable/archivo/wdth.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
     --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
-    --font-display: 'Anton', 'Geist Variable', sans-serif;
+    --font-display: 'Archivo Variable', 'Geist Variable', sans-serif;
     --font-heading: var(--font-display);
 
     /* shadcn contract — names unchanged, values remapped in :root */
@@ -150,6 +151,8 @@ Complete proposed contents.
     }
     body {
         @apply bg-background font-sans text-foreground;
+        /* marathonthegame.com sets slashed zeros on body — every 0 in the tool reads as a digit. */
+        font-variant-numeric: slashed-zero;
     }
     /* ponytail: one rule gives every raw <label>/<kbd> the mono chrome voice; components add
        size + tracking with label-mono. Ceiling: if a prose <label> ever needs sans, scope this
@@ -184,7 +187,7 @@ Complete proposed contents.
     font-family: var(--font-mono);
     font-size: 0.6875rem;
     line-height: 1.2;
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums slashed-zero;
     letter-spacing: 0.08em;
     text-transform: uppercase;
 }
@@ -263,6 +266,29 @@ Complete proposed contents.
         80% 88%, 76% 100%, 72% 92%, 0 96%
     );
 }
+
+/* The site's "super type": Archivo pushed to its widest (wdth 125), heavy, tight, 90% leading —
+   the stand-in for Marathon Shapiro Wide. Size is the caller's (text-3xl … clamp()). */
+@utility type-display {
+    font-family: var(--font-display);
+    font-stretch: 125%;
+    font-weight: 750;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+}
+
+/* `[↗]` / `[⌄]` — the site wraps every nav glyph in square brackets. Put the glyph inside. */
+@utility bracket {
+    &::before { content: "["; }
+    &::after  { content: "]"; }
+}
+
+/* The footer's 45° acid hazard cell. ponytail: acid + void baked in; it is decoration on a dark
+   page, not a state. Ceiling: a second theme needs a second gradient. */
+@utility bg-hazard {
+    background-image: repeating-linear-gradient(-45deg, var(--acid) 0 14px, var(--void) 14px 28px);
+}
 ```
 
 **Notes for the implementer.**
@@ -322,7 +348,11 @@ const buttonVariants = cva(
         default:
           "bg-primary text-primary-foreground hover:bg-[color-mix(in_oklch,var(--primary),black_14%)]",
         outline:
-          "border-border text-foreground hover:border-foreground/30 hover:bg-accent aria-expanded:border-foreground/30 aria-expanded:bg-accent",
+          "border-border text-foreground hover:border-acid hover:text-acid aria-expanded:border-acid aria-expanded:text-acid",
+        // marathonthegame.com's secondary block (`EXPLORE ↗`): white field, black label, and the
+        // hover *inverts* to void + acid instead of tinting. Same inversion drives `outline` above.
+        inverse:
+          "bg-foreground text-background hover:border-acid hover:bg-background hover:text-acid",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-hover aria-expanded:bg-hover",
         ghost:
@@ -339,7 +369,8 @@ const buttonVariants = cva(
           "h-8 gap-1.5 px-3 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
         xs: "h-6 gap-1 px-2 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-7 gap-1 px-2.5 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 gap-1.5 px-4 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        // The site's CTA block: 52px tall, ≥200px wide, label left, glyph right.
+        lg: "h-13 min-w-[200px] gap-3 pr-4 pl-5 has-data-[icon=inline-end]:justify-between",
         icon: "size-8",
         "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-7",
@@ -831,3 +862,62 @@ ponytail: bg-crosshair-grid bakes white/10% into its data URI instead of masking
 ponytail: --sidebar-* tokens dropped (8 vars, zero consumers). Re-paste from the shadcn
           theming docs if `shadcn add sidebar` is ever run.
 ```
+
+---
+
+## 8. Website layer — marathonthegame.com (2026-09-20)
+
+Added after the site pass (mood-board §f). Everything above still holds; this section is the delta, and
+the §2 file and §3.1 button already carry it.
+
+### 8.1 Tokens
+
+| Change | Value | Why |
+|---|---|---|
+| `--font-display` | `'Archivo Variable'` via `@fontsource-variable/archivo/wdth.css` | Site headline face is Marathon Shapiro **Wide**; Anton (condensed) was the wrong axis |
+| `type-display` utility | family + `font-stretch: 125%` + weight 750 + `line-height: .9` + `-0.02em` + uppercase | The site's `text-super-type-*` rule (`line-height 80–95%`, `letter-spacing -.02em`) as one class; `font-display` alone only set the family |
+| `body` | `font-variant-numeric: slashed-zero` | Verbatim from the site's `body` rule |
+| `label-mono` | `tabular-nums slashed-zero` | Same, for the 11px chrome |
+| `bracket` utility | `::before "["`, `::after "]"` | `NEWS [↗]`, `ENGLISH [⌄]`, `[↗] HELP` — the site brackets every glyph |
+| `bg-hazard` utility | `repeating-linear-gradient(-45deg, acid 0 14px, void 14px 28px)` | The footer's striped spacer cell |
+
+Not changed, deliberately: `void` stays `#08090b` (the site is `#000`, but the tool's four-step surface ladder
+needs the headroom); `dim` stays `#a9aeb7` (the site's `#717171` fails AA at our 11px); no second mono
+face (the site runs KH Interference *and* PP Fraktion Mono; one Geist Mono covers both roles).
+
+### 8.2 Components
+
+**`Button`** (§3.1). `size="lg"` is now the site's block: `h-13 min-w-[200px] pl-5 pr-4`, and a
+trailing `<span data-icon="inline-end" className="bracket">↗</span>` pushes to the right edge via
+`justify-between`. `outline` hover is the inversion (`border-acid text-acid`, no tint), and the new
+`inverse` variant is the white block (`bg-foreground text-background`) whose hover flips to void + acid.
+Callers that need two blocks side by side set `min-w-0 flex-1`.
+
+**`CommandBar`**. The mark sits in a bordered `w-13` 1:1 cell at the left end (`border-r`, no
+padding); the exit action is a full-height `border-l px-5` cell at the right end reading
+`DISCONNECT [▸]` / `EXIT DEMO [▸]`, hover `text-acid`. Hairline, not acid — the site's `BUY NOW` cell is
+acid, but on a settings screen the acid budget belongs to Apply (thock-style-plan §8 A1).
+
+**`Poster`** — recut to the site's feature block; see thock-style-plan §3.11 / §5.
+
+**Landing bar + footer** — see thock-style-plan §5.
+
+### 8.3 Type scale, site vs tool
+
+| Role | Site | Tool |
+|---|---|---|
+| Super type | 123px / 80–95% / −0.02em | `type-display text-[clamp(48px,7vw,104px)]` — hero only |
+| Heading 1–3 | 57 / 39 / 24px | poster title `clamp(26px,2.2vw,36px)`; CODEX + ConnectGate `text-3xl` (30px) |
+| Detail | 15px mono/decorative | `label-mono` 11px |
+| Body | 15px sans, 120% | 13–14px Geist |
+
+The floor for `type-display` drops from 28px to 24px: Archivo at wdth 125 holds up at 24px where Anton
+turned to mud. Below that it is still mono.
+
+### 8.4 Verification
+
+- `pnpm typecheck` (4 packages), `pnpm build`, `pnpm -r lint` — all green on 2026-09-20.
+- Landing screenshots at 1440×900 and 1280×720 fit one screen; 900×1400 stacks. Both demo apps render
+  the new CommandBar cells.
+- Archivo's width axis is live: `THOCK` in the hero is visibly wider than the same string in Geist at
+  the same size. If it ever renders condensed, the `wdth.css` import (not `index.css`) is what got lost.

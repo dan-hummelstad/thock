@@ -5,8 +5,8 @@ import { SettingCard } from "@thock/ui/shell/SettingCard"
 export default function HelpPage() {
   return (
     <div className="flex max-w-2xl flex-col gap-4">
-      {/* One of Anton's three homes in the whole system (§8 A4): landing, ConnectGate, CODEX. */}
-      <h2 className="font-display text-3xl uppercase text-foreground">Codex</h2>
+      {/* One of the display face’s three homes (§8 A4): landing, ConnectGate, CODEX. */}
+      <h2 className="type-display text-3xl text-foreground">Codex</h2>
 
       <SettingCard
         title="[1] What is this"

@@ -27,7 +27,7 @@ does today, in the same number of clicks.
 - **The write rule.** Writes still happen only on an explicit Apply. Restyling Apply as an acid block
   does not make it fire on hover, on blur, or on anything else.
 - **Stack.** Still shadcn v4 on `@base-ui/react`, Tailwind v4, lucide for functional icons. No UI library
-  swap. Two new `@fontsource` packages (Anton, Geist Mono Variable) and nothing else.
+  swap. Two new `@fontsource` packages (Archivo Variable — Anton until the 2026-09-20 site pass — and Geist Mono Variable) and nothing else.
 - **No light mode.** D1 stands: one palette on `:root`.
 - **No feature work.** No new pages, no new device capability, no import/export, no profile naming.
   Two structural additions (a `[n] STAGE` frame, a landing poster wall) and two structural deletions
@@ -66,7 +66,7 @@ Two centred rounded cards on a neutral field. Competent; indistinguishable from 
 ```
 +==============================================================+
 | THOCK        [+]                    AUTHORIZED: WEBHID  N1 N2|
-|  T H O C K  /  D E V I C E   C O N T R O L                   | <- Anton clamp(56-112px), ink on void
+|  T H O C K  /  D E V I C E   C O N T R O L                   | <- display face (Archivo Wide) clamp(48-104px), ink on void
 |                                                              |
 | +--------------------------+  +--------------------------+   |
 | |####### ORANGE FIELD #####|  |###### COBALT FIELD ######|   |
@@ -371,7 +371,7 @@ is the reference register; ours reads as a device log.
 ```tsx
 // children falsy → centred panel with corner ticks on bg-void + crosshair grid
 // <div class="corner-ticks border border-border bg-panel p-6 w-[420px]">
-//   <h2 class="font-display text-3xl uppercase text-foreground">SEARCHING</h2>   // one of Anton's 3 homes (§8 A4)
+//   <h2 class="type-display text-3xl text-foreground">SEARCHING</h2>   // one of the display face's 3 homes (§8 A4)
 //   <p class="label-mono text-acid motion-safe:animate-typewriter">SEARCHING…</p>
 //   <ul class="label-mono text-muted-foreground/60 mt-3 leading-relaxed">
 //     <li>+ WEBHID BRIDGE OPEN</li><li>+ AWAITING DEVICE AUTHORIZATION</li></ul>
@@ -413,7 +413,7 @@ here in `Stage` rather than per tile. Imported by `projects/keyboard/src/compone
 ```tsx
 interface PosterProps {
   tone: "orange" | "cobalt"; eyebrow: string; title: string
-  art: string                    // poster-keyboard.svg | poster-mouse.svg
+  art: string                    // art-keyboard.svg | art-mouse.svg (the plate alone; posters held in reserve)
   specs: string[]; features: string[]; batch: string
   onConnect: () => void; onDemo: () => void; connectDisabled?: boolean
 }
@@ -431,6 +431,14 @@ interface PosterProps {
 ```
 
 Imported by `projects/thock/src/App.tsx` only. It replaces the local `DeviceCard`.
+
+**Recut 2026-09-20 (website pass, mood-board §f).** Same props, new anatomy — the site's feature block:
+the colour field is the media; a `bg-void` caption panel overlaps its bottom-right corner on `lg`
+(`absolute right-0 bottom-0 w-[52%]`) carrying specs in `text-acid` mono, the title in `type-display`, and
+the features line; the two CTAs are `Button size="lg"` blocks hanging off the panel's bottom edge
+(`-mx-5 border-t`), `CONNECT [↗]` acid and `RUN DEMO [▶]` `inverse` white. The plate hugs the top-left of
+the field at `max-h-[60%]` so the panel only ever covers colour. Below `lg` the panel goes static under the
+plate. `BATCH` moved to the eyebrow row's right end. The USB/demo icon SVGs are no longer rendered here.
 
 ### 3.12 `lib/nav.ts` `createNav` — **UNCHANGED**
 
@@ -462,7 +470,7 @@ is decorative, and discovery/09 forbids routing real body copy through saturated
 | **Advanced Keys** `features/advanced/AdvancedKeysPage.tsx` | Mode cards become square tiles with a purple ("epic" tier per D2) value bar and a mandatory `DKS`/`MT`/`SNAP`/`TGL` abbreviation label — the CVD rule from discovery/09 §5 makes the abbreviation the ground truth, not the colour. Assigned keys get the same abbreviation printed on the tile. | `Stage`, `SettingCard` | `REQUIRES 2 KEYS`; `ERR: SELECT 2 KEYS FIRST` | M |
 | **Macro dialog** `features/macro/MacroDialog.tsx` | Dialog becomes a square hairline panel with corner ticks. `EventRow` list becomes a **mono event log**: `001  DOWN  KC_A        +0ms` / `002  DELAY            +120ms`, monospace columns, tabular nums, a hairline between rows. The record button stays a hairline outline in both states — armed, its label goes `● REC` in `text-red-text` and the capture strip reads `● REC — PRESS KEYS`. No acid fill: there is no acid left in the budget for a dialog's secondary control (§8 A1), and red on a recording control is the universal read anyway. | `Dialog`, `Kbd`, rows (local) | `MACRO [03]` / `REPEAT` / `● REC` / `STOP` | M |
 | **Settings** `features/settings/GeneralSettingsPage.tsx` | No layout change; `Separator` blocks become hairlines, `RadioGroup` items become square, `Select`/`Slider` pick up the P1 restyle. Group headings gain `[n]` prefixes. | `PageHeader(index)`, `SettingCard` | `REPORT RATE` / `DEBOUNCE` / `SLEEP TIMERS` / `OS` | S |
-| **Help** `features/help/HelpPage.tsx` | Becomes the **CODEX**: a numbered index list of entries, each a hairline block with a mono `[n]` heading. The "nothing is hardware-verified" card gets an orange (warning) value bar and an explicit `⚠ UNVERIFIED` tag — it is the one honest warning in the app and should look like one. | `PageHeader(index)`, `SettingCard(dirty=false, warn tone)` | Page title `CODEX`, the one in-app heading set in Anton (§8 A4); `[1] WHAT IS THIS` … `[4] ⚠ UNVERIFIED PROTOCOL` | S |
+| **Help** `features/help/HelpPage.tsx` | Becomes the **CODEX**: a numbered index list of entries, each a hairline block with a mono `[n]` heading. The "nothing is hardware-verified" card gets an orange (warning) value bar and an explicit `⚠ UNVERIFIED` tag — it is the one honest warning in the app and should look like one. | `PageHeader(index)`, `SettingCard(dirty=false, warn tone)` | Page title `CODEX`, the one in-app heading set in the display face (§8 A4); `[1] WHAT IS THIS` … `[4] ⚠ UNVERIFIED PROTOCOL` | S |
 
 **Deleted: `features/profiles/ProfilesPage.tsx`** (§8 A3). The CommandBar's `1..N` chips are the profile
 switch, and the keyboard's page had no other content. Removed with it: the `profiles` entry from
@@ -483,7 +491,7 @@ Quick Settings in it would lie). The mouse keeps its page — it owns `Restore p
 | **Lighting** `features/light/LightPage.tsx` | Mode picker becomes square tiles; the colour input becomes a swatch tile that opens the native picker; disabled-per-mode fields grey out with `cursor-not-allowed` + reduced icon opacity (discovery/09 §3), not colour alone. | `SettingCard(dirty)`, `ApplyRevert` | `MODE` / `COLOUR` / `SPEED` / `BRIGHTNESS`; disabled fields captioned `N/A FOR THIS MODE` | S |
 | **My Profiles** `features/profiles/ProfilesPage.tsx` | Kept (the keyboard's is deleted, §8 A3) because this one owns `Restore profile defaults`. Row list → tile grid of `[1]`…`[N]` square tiles, active = acid fill + black `ACTIVE` label. `Restore profile defaults` becomes a hairline destructive button (`↺ RESTORE DEFAULTS`); its confirm Dialog gets the square panel + one red-fill confirm. | `PageHeader(index)`, `Tile`, `Dialog` | `ONBOARD PROFILES`; dialog title `RESTORE PROFILE [2]?` | S |
 | **Settings** `features/settings/GeneralSettingsPage.tsx` | Same treatment as keyboard's General. | `PageHeader(index)`, `SettingCard` | `DEBOUNCE` / `SLEEP TIMER` / `POWER SAVE` / `LONG DISTANCE` | S |
-| **Help** `features/help/HelpPage.tsx` | Same CODEX treatment as keyboard's; same `⚠ UNVERIFIED` block. | `PageHeader(index)`, `SettingCard` | `CODEX` in Anton | S |
+| **Help** `features/help/HelpPage.tsx` | Same CODEX treatment as keyboard's; same `⚠ UNVERIFIED` block. | `PageHeader(index)`, `SettingCard` | `CODEX` in the display face | S |
 
 **Where the heatmap bars appear.** Actuation-depth value bars on key tiles render on the **Actuation Point
 and Rapid Trigger pages only** (§8 A5). Quick Settings, RGB, Remap and Advanced Keys render the board
@@ -499,45 +507,43 @@ plumbing.
 
 ## 5. Landing page — `projects/thock/src/App.tsx`
 
+*Rewritten 2026-09-20 to the website's grammar (mood-board §f). The 2026-09-19 poster-wall composition it
+replaces is in git history; the assets it used stay shipped.*
+
 The device-picker logic (`initialSelection`, the `?mock=` read, `hidAvailable`, the two `lazy()` imports,
-the `Suspense` fallbacks) is unchanged. Only the returned JSX for the `selection === null` branch changes,
-plus the Suspense fallback text (`Loading…` → a mono `LOADING…` on void).
+the `Suspense` fallbacks) is unchanged. Only the returned JSX for the `selection === null` branch changes.
 
-**Composition.** A single full-bleed `min-h-screen bg-void` with a 12-column grid at
-`max-w-[1400px] mx-auto px-8`, `bg-crosshair-grid` on the page ground at 12% opacity.
+**Composition.** `flex flex-col bg-void bg-crosshair-grid lg:h-svh` — one screen tall on desktop, stacking
+and scrolling below `lg`. A full-bleed bar on top, then a `max-w-[1400px]` 12-column grid with three rows:
+`auto` (hero) / `minmax(0,1fr)` (posters) / `auto` (footer).
 
-1. **Edge chrome (rows 1 and last).** Top-left: `logo-mark.svg` at 24px + `THOCK` in mono.
-   Top-right: `AUTHORIZED: WEBHID` in mono `text-muted-foreground/60`. Both long edges carry `ruler.svg`
-   (`N1 N2 N3 N4 N5`) pinned at the extreme margin, `aria-hidden`, at ~30% opacity — the poster's
-   edge-pinned ruler, doing literally nothing but being correct.
-2. **Hero (cols 1–12).** `THOCK` in Anton at `clamp(56px, 9vw, 112px)`, uppercase, tracking `-0.01em`,
-   `text-foreground` on void, with `DEVICE CONTROL` on the second line in the same face at half size and
-   `text-muted-foreground/60`. Under it, one mono line: `TWO DEVICES · NO DRIVERS · NO INSTALL`. A single
-   `registration-mark.svg` sits at the grid intersection to the hero's upper right — the poster wall's
-   scattered `+`, used once, not sprinkled.
-3. **The two posters (cols 1–6 and 7–12, equal height, 4px gutter).** Rendered by `Poster`:
-   - **Keyboard — orange field** (`--color-orange-fill`, white text; 4.61:1 / Lc‑76.4, passes).
-     Eyebrow `UNIT 01 / KEYBOARD`. Art: `poster-keyboard.svg` — a 1-bit dithered top-down SK75 in white
-     ink on the orange. Title `SK75 TMR` in Anton. Specs `HALL-EFFECT · 82 KEYS · TMR SENSING`.
-     Features `ACTUATION  RAPID TRIGGER  RGB  REMAP  MACRO`. Footnote `BATCH SK75-0457`.
-   - **Mouse — cobalt field** (`--color-cobalt-fill`, white text; 6.27:1, passes). Eyebrow
-     `UNIT 02 / MOUSE`. Art: `poster-mouse.svg` — same treatment, dithered top-down X2.
-     Title `X2 CRAZYLIGHT MINI`. Specs `26K DPI · 8K POLLING · 55G`.
-     Features `DPI  POLLING  SENSOR  BUTTONS  LIGHT`. Footnote `BATCH X2-0912`.
-   - **CTAs, both posters.** Primary: a full-width **acid block**, black mono text, `CONNECT` — the main
-     menu's `SEARCH` button, verbatim. Secondary: `RUN DEMO`, a hairline outline in white/40 on the
-     colour field. When `!hidAvailable`, the acid block goes to `bg-raised text-muted-foreground/60`,
-     `cursor-not-allowed`, and a mono line reads `ERR: WEBHID UNAVAILABLE — USE CHROME OR EDGE` —
-     the `ERR:` prefix carrying the meaning, not the colour.
-   - `onConnect` / `onDemo` call the existing `setSelection({device, mode})`. `RUN DEMO` is the same
-     entry `?mock=keyboard|mouse` reaches, so the deep link keeps working untouched.
-4. **Footnote strip (last row, full bleed).** `swatch-strip.svg` — five hard 24×8 colour blocks in the
-   D2 signal order (acid, orange, cobalt, red, magenta) — then, right-aligned in mono `text-muted-foreground/60`:
-   `AUTHORIZED: WEBHID · CHROME/EDGE · NOTHING LEAVES THIS MACHINE`. A `glyph-err.svg` sits at the
-   strip's far left at 12px, decorative, `aria-hidden` — the poster wall's repeated ERR mascot, used
-   once as a maker's mark.
-5. **`glyph-runner.svg`** is held in reserve for the ConnectGate panel (a 16px mark above `SEARCHING…`)
-   and the 404/no-device state. Not on the landing page — one mascot per surface.
+1. **The bar (full bleed, `h-15`).** The site's nav verbatim in structure: a bordered `w-15` 1:1 cell
+   holding the masked `logo-mark.svg`; then mono `THOCK`, `SOURCE [↗]` (GitHub) and `WEBHID [↗]` (MDN),
+   `text-muted-foreground` with `hover:text-acid`; then a `min-w-[200px] border-l` action cell at the far
+   right, `RUN DEMO [▶]`, which launches the keyboard demo. The site fills that cell acid (`BUY NOW`); ours
+   is hairline with a white inversion on hover — CONNECT keeps the acid on this screen (§8 A1, A7).
+2. **Hero (cols 1–12).** Eyebrow `DEVICE CONTROL / WEBHID` in mono, then `THOCK` in `type-display` at
+   `clamp(48px, 7vw, 104px)`. Right-aligned on the baseline: `(2) UNITS · NO DRIVERS · NO INSTALL` — the
+   site's `(10)` count idiom. No registration mark, no rulers: the site has neither.
+3. **The two posters (cols 1–6 and 7–12, 4px gutter, full leftover height).** `Poster` as recut in §3.11:
+   - **Keyboard — orange field.** Eyebrow `UNIT 01 / KEYBOARD` … `BATCH SK75-0457`. Art
+     `art-keyboard.svg`. Panel: `HALL-EFFECT · 81 KEYS · TMR SENSING` (acid mono), `SK75 TMR`
+     (`type-display`), `ACTUATION / RAPID TRIGGER / RGB / REMAP / MACRO`.
+   - **Mouse — cobalt field.** Eyebrow `UNIT 02 / MOUSE` … `BATCH X2-0912`. Art `art-mouse.svg`. Panel:
+     `32K DPI · 8K POLLING`, `X2 CRAZYLIGHT MINI`, `DPI / POLLING / SENSOR / BUTTONS / LIGHT`.
+   - **CTAs.** `CONNECT [↗]` — the one acid block per poster — and `RUN DEMO [▶]` as the site's white
+     `inverse` block, side by side off the panel's bottom edge. When `!hidAvailable` the acid block goes
+     `bg-raised text-muted-foreground cursor-not-allowed` and the panel carries
+     `ERR: WEBHID UNAVAILABLE — USE CHROME OR EDGE` in `text-red-text`.
+   - `onConnect` / `onDemo` call the existing `setSelection({device, mode})`; `?mock=` keeps working (A6).
+4. **Footer (cols 1–12) — the site's cell table.** `grid grid-cols-12 gap-px bg-border border`, every cell
+   `bg-void`: `(2)` and `UNITS` outlined `border-acid` in `text-acid`; a link list `[↗] SOURCE` /
+   `[↗] WEBHID API`; one `bg-hazard` spacer cell; the legal line
+   `AUTHORIZED: WEBHID · CHROME/EDGE · NOTHING LEAVES THIS MACHINE` in `text-muted-foreground/60`; and the
+   `THOCK` wordmark in `type-display text-2xl` at the right end — the site puts its wordmark bottom-left,
+   ours reads better closing the row.
+5. **Held in reserve** (shipped, unrendered): `ruler.svg`, `swatch-strip.svg`, `registration-mark.svg`,
+   `glyph-err.svg`, both `poster-*.svg`, and `glyph-runner.svg` (still earmarked for ConnectGate / 404).
 
 ### Delivered assets
 
@@ -550,10 +556,10 @@ Contact sheet: `docs/marathon-redesign/assets-contact-sheet.html` (inlines all 3
 |---|---|---|
 | `poster-keyboard.svg` | 31262 | Landing poster art, keyboard. **Bakes hexes** — a complete 600×800 composition: own void ground, safety-orange field with a torn pixel edge, Bayer-dithered SK75, pixel type-blocks, foot swatch strip. |
 | `poster-mouse.svg` | 30479 | Landing poster art, mouse. **Bakes hexes**; same treatment, dithered X2. |
-| `ruler.svg` | 3823 | `N1`–`N5` edge ruler, landing margins only, `aria-hidden`. |
-| `glyph-err.svg` | 1549 | `ERR` pixel glyph, 24×8 at 2×. Landing footnote maker's mark; never a substitute for the `ERR:` string prefix. |
+| `ruler.svg` | 3823 | `N1`–`N5` edge ruler. *Reserve since 2026-09-20* — the site has no rulers. |
+| `glyph-err.svg` | 1549 | `ERR` pixel glyph, 24×8 at 2×. *Reserve since 2026-09-20*; never a substitute for the `ERR:` string prefix. |
 | `glyph-runner.svg` | 1348 | Runner mascot. Reserved for the ConnectGate panel and the no-device state. |
-| `swatch-strip.svg` | 783 | Six-swatch press registration strip, landing foot. **Bakes hexes.** |
+| `swatch-strip.svg` | 783 | Six-swatch press registration strip. **Bakes hexes.** *Reserve since 2026-09-20.* |
 | `icon-macro.svg` | 528 | Macro / event-log icon. |
 | `icon-devices.svg` | 460 | Devices (exit to picker). |
 | `icon-remap.svg` | 454 | Remap. |
@@ -576,7 +582,7 @@ Contact sheet: `docs/marathon-redesign/assets-contact-sheet.html` (inlines all 3
 | `icon-revert.svg` | 330 | Revert. |
 | `crosshair-grid.svg` | 314 | 24px `+` tile — the reference for `@utility bg-crosshair-grid`, which bakes white at 10% in its own data URI (this file is at 14%). Not loaded at runtime. |
 | `icon-settings.svg` | 308 | Settings. |
-| `registration-mark.svg` | 297 | Single 16px `+`; hero mark and empty-slot placeholder. |
+| `registration-mark.svg` | 297 | Single 16px `+`; empty-slot placeholder. *Off the landing since 2026-09-20.* |
 | `icon-polling.svg` | 292 | Polling rate. |
 | `icon-apply.svg` | 273 | Apply. |
 | `art-keyboard.svg` | 6 952 | The SK75 plate alone (black plate, white frame, dithered keys) — what the landing poster actually shows since 2026-09-20; the full poster stays for print/marketing use |
@@ -719,12 +725,26 @@ shared hook (two call sites, two different selection stores). Until P5, `Kbd` re
 **A3 — The keyboard's `ProfilesPage` is deleted**, with its nav entry, `Page` member and `RAIL_OF` row; the
 CommandBar chips replace it. The mouse keeps its page, which owns `Restore profile defaults`. See §4a.
 
-**A4 — Anton appears on exactly three surfaces**: the landing page, the `ConnectGate` title, and the CODEX
-(help) page title. Every in-app heading is tracked mono. Anton is mud at 11px and this keeps it above 28px
-everywhere it appears.
+**A4 — The display face appears on exactly three surfaces**: the landing page, the `ConnectGate` title, and
+the CODEX (help) page title. Every in-app heading is tracked mono. *Amended 2026-09-20 (A8):* the face is
+Archivo Variable at `wdth 125` via the `type-display` utility, floor 24px, no longer Anton at 28px.
 
 **A5 — Actuation heatmap value bars on key tiles appear on the Actuation Point and Rapid Trigger pages
 only.** Every other keyboard page renders the board without them.
+
+**A7 — The website's grammar owns the landing page and the bar (2026-09-20).** Nav = logo cell + bracketed
+mono links + end action cell; sections = eyebrow / super type / body; posters = media + overlapping caption
+panel + block CTAs; footer = hairline cell table with the acid-outlined count cell and a hazard spacer.
+A1 still binds: the site's acid `BUY NOW` and three-per-page acid CTAs are **not** copied — the bar's action
+cells (landing `RUN DEMO`, app `DISCONNECT`) are hairline, and CONNECT / Apply keep the fill. The landing stays
+one screen tall (the 2026-09-19 request), so the site's long-scroll sections, video hero and vertical
+wordmark column are not taken. Rulers, swatch strip, registration mark and `ERR` glyph leave the landing
+and stay in the asset folder.
+
+**A8 — Display face is Archivo Wide, not Anton.** The site's headline face (Marathon Shapiro Wide) is an
+extended grotesk; Anton is condensed, i.e. the opposite axis. `@fontsource-variable/archivo` imported via
+`wdth.css`, used only through `type-display` (`font-stretch: 125%`, weight 750, 90% leading, −0.02em).
+Package count is unchanged: one display package out, one in.
 
 **A6 — `?mock=keyboard|mouse` stays.** No `/demo/keyboard` route: `RUN DEMO` calls the same
 `setSelection({device, mode})` the query param reaches, so there is nothing a path would add but a router.
@@ -749,6 +769,9 @@ only.** Every other keyboard page renders the board without them.
   WebHID does not work on mobile browsers anyway, so the only mobile-reachable screen is the landing page.
 - One palette, no light mode, `@custom-variant dark` left in place and harmless. **Ceiling:** a future
   light mode means re-deriving the whole D2 ladder, not flipping a switch.
+- `Poster`'s caption panel overlaps by a fixed `52%` width and the plate is capped at `60%` height.
+  **Ceiling:** at unusual poster aspect ratios (very short rows) the panel can cover the plate's bottom
+  edge; the fix is a `grid-rows` layout inside the poster, not more percentages.
 - `Poster` is the one shell primitive with a single consumer. **Ceiling:** if it never gets a second
   caller, it can move to `projects/thock/src/` — but it belongs to the design system conceptually and
   costs nothing where it is.
