@@ -1,0 +1,13 @@
+{
+  "name": "deco-tmp-bridge",
+  "private": true,
+  "type": "module",
+  "description": "SSH->TMP->HTTP bridge for the Deco opcode-only features. UNVERIFIED reference.",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "ssh2": "^1.16.0"
+  }
+}

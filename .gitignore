@@ -4,6 +4,14 @@
 DerivedData/
 build/
 dist/
+out/
 .DS_Store
+release/
 node_modules/
 .wrangler/
+
+# Deco form captures contain SSIDs, base64 Wi-Fi passwords, MACs and public IPs
+docs/deco-protocol/captures/
+
+# python bytecode from the deco protocol scripts
+__pycache__/

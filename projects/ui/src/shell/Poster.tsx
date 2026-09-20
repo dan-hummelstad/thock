@@ -2,14 +2,18 @@ import { Button } from "../components/ui/button"
 import { cn } from "../lib/utils"
 
 // ponytail: TONE is a static lookup of whole class names — Tailwind's @source scanner cannot see
-// `bg-${tone}-fill`. Ceiling: a third device means a third line here, not a new mechanism.
-const TONE = { orange: "bg-orange-fill", cobalt: "bg-cobalt-fill" } as const
+// `bg-${tone}-fill`. magenta-fill already existed in index.css earmarked "landing and banner highlight"
+// (styling-plan §5) and doesn't collide with orange or cobalt under any CVD type (discovery/09 §5), so
+// the third device spends it rather than minting a new token. Ceiling: a fourth device needs a new
+// -fill token — red and purple are already spoken for (destructive, epic-tier) — which is a CSS var plus
+// one line here, still not a new mechanism.
+const TONE = { orange: "bg-orange-fill", cobalt: "bg-cobalt-fill", magenta: "bg-magenta-fill" } as const
 
 export interface PosterProps {
   tone: keyof typeof TONE
   eyebrow: string
   title: string
-  /** art-keyboard.svg | art-mouse.svg — the device plate alone, shown whole (object-contain). */
+  /** art-keyboard.svg | art-mouse.svg | art-network.svg — the plate alone, shown whole (object-contain). */
   art: string
   specs: string[]
   features: string[]
@@ -17,6 +21,8 @@ export interface PosterProps {
   onConnect: () => void
   onDemo: () => void
   connectDisabled?: boolean
+  /** ERR: line shown under connectDisabled. Defaults to the WebHID reason the first two posters need. */
+  disabledReason?: string
   className?: string
 }
 
@@ -29,7 +35,8 @@ export interface PosterProps {
  * intermediate layout between "overlap" and "stack".
  */
 export function Poster({
-  tone, eyebrow, title, art, specs, features, batch, onConnect, onDemo, connectDisabled, className,
+  tone, eyebrow, title, art, specs, features, batch, onConnect, onDemo, connectDisabled,
+  disabledReason = "WEBHID UNAVAILABLE — USE CHROME OR EDGE", className,
 }: PosterProps) {
   return (
     <article className={cn("relative flex min-h-0 flex-col overflow-hidden text-white", TONE[tone], className)}>
@@ -42,11 +49,14 @@ export function Poster({
       <div className="flex min-h-0 flex-1 items-center justify-center px-6 pb-6 lg:items-start lg:justify-start">
         <img src={art} alt="" aria-hidden className="max-h-full max-w-full object-contain lg:max-h-[60%]" />
       </div>
-      <div className="flex flex-col gap-2 bg-void px-5 pt-5 text-foreground lg:absolute lg:right-0 lg:bottom-0 lg:w-[52%]">
+      {/* 68%, not the 52% the two-poster wall used: at three across a poster is only ~400px wide and a
+          52% panel clipped both CTA labels and the longest title. `break-words` is the backstop for a
+          title whose longest word still will not fit. */}
+      <div className="flex flex-col gap-2 bg-void px-5 pt-5 text-foreground lg:absolute lg:right-0 lg:bottom-0 lg:w-[68%]">
         <p className="label-mono text-acid">{specs.join(" · ")}</p>
-        <h2 className="type-display text-[clamp(26px,2.2vw,36px)]">{title}</h2>
+        <h2 className="type-display text-[clamp(24px,2vw,30px)] break-words">{title}</h2>
         <p className="label-mono text-muted-foreground">{features.join(" / ")}</p>
-        {connectDisabled && <p className="label-mono text-red-text">ERR: WEBHID UNAVAILABLE — USE CHROME OR EDGE</p>}
+        {connectDisabled && <p className="label-mono text-red-text">ERR: {disabledReason}</p>}
         <div className="-mx-5 mt-3 flex border-t border-border">
           <Button
             size="lg"

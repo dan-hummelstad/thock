@@ -1,0 +1,15 @@
+<!-- Landing art: the Deco mesh — three rounded node blocks joined by hairline mesh links, void plate + white frame like art-keyboard.svg. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 200" width="460" height="200" shape-rendering="crispEdges">
+<rect x="0" y="0" width="460" height="200" fill="#f7f5ef"/>
+<rect x="3" y="3" width="454" height="194" fill="#08090b"/>
+<path d="M230 112 L85 161 M230 112 L375 161 M85 161 L375 161" stroke="#f7f5ef" stroke-width="2" fill="none"/>
+<rect x="184" y="20" width="92" height="92" rx="10" fill="#f7f5ef"/>
+<rect x="214" y="36" width="32" height="8" fill="#08090b"/>
+<rect x="196" y="90" width="10" height="10" fill="#08090b"/>
+<rect x="50" y="126" width="70" height="70" rx="8" fill="#f7f5ef"/>
+<rect x="66" y="140" width="24" height="6" fill="#08090b"/>
+<rect x="98" y="176" width="10" height="10" fill="#08090b"/>
+<rect x="340" y="126" width="70" height="70" rx="8" fill="#f7f5ef"/>
+<rect x="356" y="140" width="24" height="6" fill="#08090b"/>
+<rect x="352" y="176" width="10" height="10" fill="#08090b"/>
+</svg>

@@ -1,0 +1,44 @@
+# electron-builder config for @thock/desktop. See docs/desktop-electron-plan.md §8.
+appId: com.thock.desktop
+productName: Thock Desktop
+# buildResources is "buildResources", not the electron-builder default "build": the repo's root
+# .gitignore has a broad `build/` rule that would silently swallow icons/entitlements placed here.
+directories:
+  buildResources: buildResources
+  output: release
+
+# dist/** is the esbuild output (main + preload, bundled to CommonJS). ssh2 is kept external at
+# bundle time (native-friendly), so node_modules/** must ship too — electron-builder always prunes
+# devDependencies from that regardless of this list, so only ssh2 (our one runtime dep) + its own
+# transitive deps end up packaged. Unpacked from asar so any native binding in its tree loads normally.
+files:
+  - dist/**
+  - package.json
+  - node_modules/**
+asarUnpack:
+  - node_modules/ssh2/**
+asar: true
+
+# The renderer is the existing @thock/web production build, copied in unpacked (not asar'd, not an
+# npm dependency of this package) and served by main/server.ts from process.resourcesPath/ui.
+extraResources:
+  - from: ../thock/dist
+    to: ui
+
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  category: public.app-category.utilities
+  hardenedRuntime: true
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  category: Network

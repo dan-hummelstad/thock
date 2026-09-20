@@ -2,7 +2,21 @@ packages:
   - projects/ui
   - projects/keyboard
   - projects/mouse
+  - projects/deco
   - projects/thock
+  - projects/desktop
 allowBuilds:
-  esbuild: false
-  workerd: false
+  cpu-features: true
+  electron: true
+  esbuild: true
+  ssh2: true
+  workerd: true
+# pnpm 10 gates postinstall/build scripts via `onlyBuiltDependencies` (an allowlist) — the older
+# `allowBuilds` map here was silently ignored, so electron never fetched its runtime binary. These
+# three need their scripts: electron downloads the Electron binary, ssh2/cpu-features build native
+# addons. esbuild/workerd are intentionally left out (their binaries ship as optional platform
+# packages, no build step needed).
+onlyBuiltDependencies:
+  - cpu-features
+  - electron
+  - ssh2

@@ -1,0 +1,31 @@
+{
+  "name": "@thock/desktop",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/main/index.cjs",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build:main": "esbuild src/main/index.ts src/preload/index.ts --bundle --platform=node --format=cjs --out-extension:.js=.cjs --outdir=dist --outbase=src --external:electron --external:ssh2",
+    "build": "pnpm --filter @thock/web build && pnpm build:main",
+    "start": "electron .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "ssh2": "^1.16.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.13.3",
+    "@vitejs/plugin-react": "^6.1.0",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "6.0.0-beta.1",
+    "esbuild": "^0.24.2",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}

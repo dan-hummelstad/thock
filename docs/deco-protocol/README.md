@@ -343,9 +343,18 @@ POST {url}/api/v2/account/checkMFACodeAndLogin
 - ha-tplink-deco issues #555, #227, #130, #538/#539, PR #520 — firmware quirks (timeouts, 502s, 401s, HTTPS redirect, session table)
 
 ## 7. Files here
+- The TypeScript implementation of everything below lives in `projects/deco/src/protocol/` (`md5.ts`,
+  `rsa.ts`, `aes.ts`, `names.ts`, `types.ts`, `client.ts`, plus `mock.ts` for the demo router); the UI
+  around it is `projects/deco/`. This directory is the reference and the standalone probes.
 - `probe.sh` — unauthenticated liveness probe: which login transport, open ports (22/80/443/20002), TDP reply.
 - `deco_client.py` — minimal classic-transport client (login + `call(controller, form)`), with a self-check. Live run (prints node list + client list; kicks the Deco app session):
   ```
   python3 -m venv .venv && .venv/bin/pip install cryptography
   .venv/bin/python docs/deco-protocol/deco_client.py 192.168.68.1 '<owner TP-Link ID password>'
   ```
+- `dump_forms.py` — read-only capture of every candidate form; writes `captures/forms.json` (gitignored). Settled that the advanced router controllers 404 over HTTP on this firmware.
+- `HTTP-SURFACE.md` — the forms the HTTP API actually serves (live-verified), and the ones it does not.
+- `ADVANCED-network.md`, `ADVANCED-wireless-system.md` — documentation-mined endpoint shapes (mixed confidence).
+- `FIRMWARE-XE75PRO.md` — firmware extraction: SSH on 20001, TMP via `luci.sgi.tmp`, why the advanced controllers are opcode-only.
+- `TMP-OPCODES.md` — all 622 TMP opcodes from the Deco app, with framing (§5) and request/response fields (§6).
+- `bridge/` — a reference SSH→TMP→HTTP server that reaches the opcode-only features from a browser. ⚠ unverified against hardware; `bridge/README.md` has the details and the codec self-check.

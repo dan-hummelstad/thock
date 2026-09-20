@@ -2,14 +2,16 @@ import { lazy, Suspense, useState } from "react"
 import logoMark from "@thock/ui/assets/marathon/logo-mark.svg"
 import artKeyboard from "@thock/ui/assets/marathon/art-keyboard.svg"
 import artMouse from "@thock/ui/assets/marathon/art-mouse.svg"
+import artNetwork from "@thock/ui/assets/marathon/art-network.svg"
 import { Poster } from "@thock/ui/shell/Poster"
 
-// The device picker below is the natural code-split point: a visitor only ever needs one of these two
+// The device picker below is the natural code-split point: a visitor only ever needs one of these three
 // full configurators (each with its own feature pages, protocol codecs and vendor assets) per session.
 const KeyboardApp = lazy(() => import("@thock/keyboard").then((m) => ({ default: m.KeyboardApp })))
 const MouseApp = lazy(() => import("@thock/mouse").then((m) => ({ default: m.MouseApp })))
+const DecoApp = lazy(() => import("@thock/deco").then((m) => ({ default: m.DecoApp })))
 
-type Device = "keyboard" | "mouse"
+type Device = "keyboard" | "mouse" | "deco"
 type Mode = "connect" | "demo"
 interface Selection {
   device: Device
@@ -19,10 +21,18 @@ interface Selection {
 function initialSelection(): Selection | null {
   if (typeof location === "undefined") return null
   const mock = new URLSearchParams(location.search).get("mock")
-  return mock === "keyboard" || mock === "mouse" ? { device: mock, mode: "demo" } : null
+  return mock === "keyboard" || mock === "mouse" || mock === "deco" ? { device: mock, mode: "demo" } : null
 }
 
 const hidAvailable = typeof navigator !== "undefined" && "hid" in navigator
+// The Deco poster's CONNECT needs a LAN route to the router. That exists in the desktop app (which
+// injects `window.thock.capabilities.http`) and under the Vite dev proxy (`import.meta.env.DEV`), but
+// never on the deployed static site. Read `window.thock` inline so this file doesn't import @thock/deco
+// and pull it into the main bundle (the picker below keeps the configurator lazy).
+const decoHttp = (() => {
+  const host = typeof window !== "undefined" ? (window as { thock?: { capabilities?: { http?: boolean } } }).thock : undefined
+  return host?.capabilities?.http ?? import.meta.env.DEV
+})()
 const SOURCE_URL = "https://github.com/dan-hummelstad/thock"
 const WEBHID_URL = "https://developer.mozilla.org/en-US/docs/Web/API/WebHID_API"
 
@@ -42,6 +52,13 @@ export default function App() {
     return (
       <Suspense fallback={loading}>
         <MouseApp mode={selection.mode} onExit={() => setSelection(null)} />
+      </Suspense>
+    )
+  }
+  if (selection?.device === "deco") {
+    return (
+      <Suspense fallback={loading}>
+        <DecoApp mode={selection.mode} onExit={() => setSelection(null)} />
       </Suspense>
     )
   }
@@ -78,14 +95,14 @@ export default function App() {
         {/* The site's section head: small mono eyebrow over one line of wide super type. */}
         <div className="col-span-12 flex flex-col gap-3 py-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="label-mono text-muted-foreground">DEVICE CONTROL / WEBHID</p>
+            <p className="label-mono text-muted-foreground">DEVICE CONTROL / WEBHID + LAN</p>
             <h1 className="type-display mt-2 text-[clamp(48px,7vw,104px)]">THOCK</h1>
           </div>
-          <p className="label-mono text-muted-foreground lg:pb-2">(2) UNITS · NO DRIVERS · NO INSTALL</p>
+          <p className="label-mono text-muted-foreground lg:pb-2">(3) UNITS · NO DRIVERS · NO INSTALL</p>
         </div>
 
         <Poster
-          className="col-span-12 min-h-[480px] lg:col-span-6 lg:min-h-0"
+          className="col-span-12 min-h-[480px] lg:col-span-4 lg:min-h-0"
           tone="orange"
           eyebrow="UNIT 01 / KEYBOARD"
           title="SK75 TMR"
@@ -101,7 +118,7 @@ export default function App() {
           onDemo={() => setSelection({ device: "keyboard", mode: "demo" })}
         />
         <Poster
-          className="col-span-12 min-h-[480px] lg:col-span-6 lg:min-h-0"
+          className="col-span-12 min-h-[480px] lg:col-span-4 lg:min-h-0"
           tone="cobalt"
           eyebrow="UNIT 02 / MOUSE"
           title="X2 CRAZYLIGHT MINI"
@@ -113,11 +130,28 @@ export default function App() {
           onConnect={() => setSelection({ device: "mouse", mode: "connect" })}
           onDemo={() => setSelection({ device: "mouse", mode: "demo" })}
         />
+        <Poster
+          className="col-span-12 min-h-[480px] lg:col-span-4 lg:min-h-0"
+          tone="magenta"
+          eyebrow="UNIT 03 / NETWORK"
+          title="DECO XE75 PRO"
+          art={artNetwork}
+          specs={["WI-FI 6E", "TRI-BAND", "MESH"]}
+          features={["STATUS", "NODES", "CLIENTS", "WI-FI", "LED"]}
+          batch="XE75-0220"
+          // Not WebHID: the router's local API has no CORS headers, so CONNECT needs a LAN proxy —
+          // the desktop app's built-in one, or the `/deco-api` dev proxy (vite.config.ts). A deployed
+          // Cloudflare build has no LAN route to a router and can never reach it (demo still works).
+          connectDisabled={!decoHttp}
+          disabledReason="LAN-ONLY — USE THE DESKTOP APP OR DEV SERVER TO REACH A ROUTER"
+          onConnect={() => setSelection({ device: "deco", mode: "connect" })}
+          onDemo={() => setSelection({ device: "deco", mode: "demo" })}
+        />
 
         {/* The site's footer is a hairline cell table: `(n)` count cell + acid-outlined label cell,
             a bracketed link list, one hazard-striped spacer, legal copy, and the wordmark. */}
         <footer className="label-mono col-span-12 grid grid-cols-12 gap-px border border-border bg-border">
-          <span className="col-span-1 flex items-center justify-center border border-acid bg-void text-acid">(2)</span>
+          <span className="col-span-1 flex items-center justify-center border border-acid bg-void text-acid">(3)</span>
           <span className="col-span-2 flex items-center border border-acid bg-void px-4 text-acid">UNITS</span>
           <nav className="col-span-3 flex flex-col justify-center gap-1.5 bg-void px-4 py-3 text-acid">
             <a href={SOURCE_URL} target="_blank" rel="noopener" className="flex gap-2 hover:text-foreground"><span className="bracket">↗</span> SOURCE</a>
@@ -125,7 +159,7 @@ export default function App() {
           </nav>
           <span aria-hidden className="col-span-1 bg-hazard" />
           <p className="col-span-3 flex items-center bg-void px-4 text-muted-foreground/60">
-            AUTHORIZED: WEBHID · CHROME/EDGE · NOTHING LEAVES THIS MACHINE
+            AUTHORIZED: WEBHID + LAN · CHROME/EDGE · NOTHING LEAVES THIS MACHINE
           </p>
           <span className="type-display col-span-2 flex items-center justify-end bg-void px-4 text-2xl">THOCK</span>
         </footer>

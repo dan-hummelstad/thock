@@ -92,10 +92,14 @@ class Deco:
         return out
 
     def call(self, controller: str, form: str, operation: str = "read", params=None):
+        return self.call_raw(controller, form, operation, params).get("result")
+
+    def call_raw(self, controller: str, form: str, operation: str = "read", params=None) -> dict:
+        """Whole decrypted envelope ({error_code, result?, ...}) — some forms answer without `result`."""
         body = {"operation": operation}
         if params is not None:
             body["params"] = params
-        return self._enc_post(f"/{controller}?form={form}", body)["result"]
+        return self._enc_post(f"/{controller}?form={form}", body)
 
 
 def _selfcheck():

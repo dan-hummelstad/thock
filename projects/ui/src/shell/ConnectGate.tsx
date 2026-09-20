@@ -7,6 +7,9 @@ interface ConnectGateProps {
   error?: string
   onRetry: () => void
   onBack: () => void
+  /** The two process-log lines under the heading. Defaults to the WebHID pair the keyboard and mouse
+   * want; the Deco app is not a WebHID device and passes its own. */
+  log?: [string, string]
   /** The real app once it's ready — pass a falsy value (e.g. `device && config && (...)`) while it
    * isn't; ConnectGate shows the device log in that gap instead. */
   children: ReactNode
@@ -14,7 +17,7 @@ interface ConnectGateProps {
 
 /** Every device app's "waiting for the device" screen, pulled out of each `index.tsx` so the
  * searching/error/Retry/Back panel lives in exactly one place. */
-export function ConnectGate({ status, error, onRetry, onBack, children }: ConnectGateProps) {
+export function ConnectGate({ status, error, onRetry, onBack, log = ["WEBHID BRIDGE OPEN", "AWAITING DEVICE AUTHORIZATION"], children }: ConnectGateProps) {
   if (children) return <>{children}</>
 
   const failed = status === "error"
@@ -32,8 +35,9 @@ export function ConnectGate({ status, error, onRetry, onBack, children }: Connec
           {failed ? "HANDSHAKE FAILED." : "SEARCHING…"}
         </p>
         <ul className="label-mono mt-3 leading-relaxed text-muted-foreground/60">
-          <li>+ WEBHID BRIDGE OPEN</li>
-          <li>+ AWAITING DEVICE AUTHORIZATION</li>
+          {log.map((line) => (
+            <li key={line}>+ {line}</li>
+          ))}
         </ul>
         {failed && <p className="label-mono mt-3 text-red-text">ERR: {error}</p>}
         <footer className="mt-6 flex gap-2">

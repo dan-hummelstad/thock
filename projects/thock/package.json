@@ -12,6 +12,7 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@thock/deco": "workspace:*",
     "@thock/keyboard": "workspace:*",
     "@thock/mouse": "workspace:*",
     "@thock/ui": "workspace:*",

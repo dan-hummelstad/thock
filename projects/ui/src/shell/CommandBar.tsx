@@ -13,9 +13,11 @@ export interface NavDevice {
 
 interface CommandBarProps<R extends string> {
   device: NavDevice
-  profile: number
-  profileCount: number
-  onProfileChange: (p: number) => void
+  /** Profile chips, for a device that has profiles. Omitted (or 0) hides the group entirely — the
+   * Deco mesh has no profiles. */
+  profile?: number
+  profileCount?: number
+  onProfileChange?: (p: number) => void
   tabs: { id: R; label: string; hint?: string }[]
   activeTab: R
   onTab: (id: R) => void
@@ -28,7 +30,7 @@ interface CommandBarProps<R extends string> {
 export function CommandBar<R extends string>({
   device,
   profile,
-  profileCount,
+  profileCount = 0,
   onProfileChange,
   tabs,
   activeTab,
@@ -67,13 +69,15 @@ export function CommandBar<R extends string>({
           {device.status} · {device.name}
         </span>
       </StatChip>
-      <div className="flex shrink-0 gap-px bg-border p-px">
-        {Array.from({ length: profileCount }, (_, p) => (
-          <StatChip key={p} active={p === profile} onClick={() => onProfileChange(p)}>
-            {p + 1}
-          </StatChip>
-        ))}
-      </div>
+      {profileCount > 0 && (
+        <div className="flex shrink-0 gap-px bg-border p-px">
+          {Array.from({ length: profileCount }, (_, p) => (
+            <StatChip key={p} active={p === profile} onClick={() => onProfileChange?.(p)}>
+              {p + 1}
+            </StatChip>
+          ))}
+        </div>
+      )}
       <nav className="ml-auto flex h-full shrink-0 items-center gap-2">
         {tabs.map((t) => (
           <span key={t.id} className="flex items-center gap-1">
