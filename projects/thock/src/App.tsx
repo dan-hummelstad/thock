@@ -1,8 +1,8 @@
 import { lazy, Suspense, useState } from "react"
 import glyphErr from "@thock/ui/assets/marathon/glyph-err.svg"
 import logoMark from "@thock/ui/assets/marathon/logo-mark.svg"
-import posterKeyboard from "@thock/ui/assets/marathon/poster-keyboard.svg"
-import posterMouse from "@thock/ui/assets/marathon/poster-mouse.svg"
+import artKeyboard from "@thock/ui/assets/marathon/art-keyboard.svg"
+import artMouse from "@thock/ui/assets/marathon/art-mouse.svg"
 import registrationMark from "@thock/ui/assets/marathon/registration-mark.svg"
 import ruler from "@thock/ui/assets/marathon/ruler.svg"
 import swatchStrip from "@thock/ui/assets/marathon/swatch-strip.svg"
@@ -63,11 +63,13 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-void bg-crosshair-grid">
+    // ponytail: the wall is one screen tall on desktop (h-svh, posters take the leftover height);
+    // below lg it stacks and scrolls. Ceiling: no landscape-phone layout.
+    <div className="bg-void bg-crosshair-grid lg:h-svh">
       {/* ponytail: the marathon marks paint with `currentColor`, which is black inside an `<img>` —
           `invert` is what makes a decorative mark ink-white on the void. Ceiling: a mark that needs a
           real colour has to be inlined or mask-image'd. */}
-      <div className="mx-auto grid max-w-[1400px] grid-cols-12 gap-1 px-8 py-6">
+      <div className="mx-auto grid max-w-[1400px] grid-cols-12 gap-1 px-8 py-5 lg:h-full lg:grid-rows-[auto_auto_auto_minmax(0,1fr)_auto_auto]">
         <header className="col-span-12 flex items-center justify-between pb-2">
           <span className="flex items-center gap-2 label-mono">
             <img src={logoMark} alt="" aria-hidden className="size-6 invert" />
@@ -78,21 +80,21 @@ export default function App() {
 
         <Ruler />
 
-        <div className="relative col-span-12 py-8">
-          <img src={registrationMark} alt="" aria-hidden className="absolute top-8 right-0 size-4 opacity-40 invert" />
-          <h1 className="font-display text-[clamp(56px,9vw,112px)] leading-[0.92] tracking-[-0.01em] uppercase">THOCK</h1>
-          <p className="font-display text-[clamp(28px,4.5vw,56px)] leading-[0.92] tracking-[-0.01em] text-muted-foreground/60 uppercase">
+        <div className="relative col-span-12 flex items-end gap-6 py-4">
+          <img src={registrationMark} alt="" aria-hidden className="absolute top-4 right-0 size-4 opacity-40 invert" />
+          <h1 className="font-display text-[clamp(44px,6vw,80px)] leading-[0.92] tracking-[-0.01em] uppercase">THOCK</h1>
+          <p className="font-display text-[clamp(22px,3vw,40px)] leading-[0.92] tracking-[-0.01em] text-muted-foreground/60 uppercase">
             DEVICE CONTROL
           </p>
-          <p className="mt-4 label-mono text-muted-foreground">TWO DEVICES · NO DRIVERS · NO INSTALL</p>
+          <p className="ml-auto label-mono text-muted-foreground">TWO DEVICES · NO DRIVERS · NO INSTALL</p>
         </div>
 
         <Poster
-          className="col-span-12 lg:col-span-6"
+          className="col-span-12 min-h-[420px] lg:col-span-6 lg:min-h-0"
           tone="orange"
           eyebrow="UNIT 01 / KEYBOARD"
           title="SK75 TMR"
-          art={posterKeyboard}
+          art={artKeyboard}
           // 81, not 82: PROTOCOL.md §1 reads the vendor's own `Common81_AGK75B` layout. The X2's
           // 32000 ceiling is `DPI_MAX` in mouse/src/protocol/types.ts; its 55 g weight is confirmed
           // nowhere in this repo, so the poster does not claim it.
@@ -104,11 +106,11 @@ export default function App() {
           onDemo={() => setSelection({ device: "keyboard", mode: "demo" })}
         />
         <Poster
-          className="col-span-12 lg:col-span-6"
+          className="col-span-12 min-h-[420px] lg:col-span-6 lg:min-h-0"
           tone="cobalt"
           eyebrow="UNIT 02 / MOUSE"
           title="X2 CRAZYLIGHT MINI"
-          art={posterMouse}
+          art={artMouse}
           specs={["32K DPI", "8K POLLING"]}
           features={["DPI", "POLLING", "SENSOR", "BUTTONS", "LIGHT"]}
           batch="X2-0912"
@@ -119,7 +121,7 @@ export default function App() {
 
         <Ruler />
 
-        <footer className="col-span-12 flex items-center gap-4 pt-4">
+        <footer className="col-span-12 flex items-center gap-4 pt-2">
           <img src={glyphErr} alt="" aria-hidden className="h-3 opacity-60 invert" />
           <img src={swatchStrip} alt="" aria-hidden className="h-3" />
           <span className="ml-auto label-mono text-muted-foreground/60">

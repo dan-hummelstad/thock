@@ -579,6 +579,8 @@ Contact sheet: `docs/marathon-redesign/assets-contact-sheet.html` (inlines all 3
 | `registration-mark.svg` | 297 | Single 16px `+`; hero mark and empty-slot placeholder. |
 | `icon-polling.svg` | 292 | Polling rate. |
 | `icon-apply.svg` | 273 | Apply. |
+| `art-keyboard.svg` | 6 952 | The SK75 plate alone (black plate, white frame, dithered keys) — what the landing poster actually shows since 2026-09-20; the full poster stays for print/marketing use |
+| `art-mouse.svg` | 6 251 | The X2 shell alone, oval outline — same role for the mouse poster |
 
 **Baked-hex caveat.** The four files above carry the *decorative poster* hexes (acid `#c0fe04`, orange
 `#ff5a1f`, cobalt `#1a2bff`, red `#ff2a1f`, magenta `#ff2d8a`), not the contrast-derived D2 palette. Two
