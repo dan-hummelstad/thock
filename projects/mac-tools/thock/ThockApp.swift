@@ -39,6 +39,8 @@ final class KeyTap {
         let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
                  | (1 << CGEventType.mouseMoved.rawValue) | (1 << CGEventType.scrollWheel.rawValue)
                  | (1 << CGEventType.otherMouseDown.rawValue) | (1 << CGEventType.otherMouseUp.rawValue)
+                 | (1 << CGEventType.leftMouseDown.rawValue) | (1 << CGEventType.leftMouseUp.rawValue)     // tap veto only
+                 | (1 << CGEventType.rightMouseDown.rawValue) | (1 << CGEventType.rightMouseUp.rawValue)
         let cb: CGEventTapCallBack = { _, type, event, refcon in
             Unmanaged<KeyTap>.fromOpaque(refcon!).takeUnretainedValue().handle(type, event)
         }
@@ -54,6 +56,7 @@ final class KeyTap {
     }
 
     private func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
+        if type != .mouseMoved && type != .flagsChanged { TapSensor.lastInput = CACurrentMediaTime() }   // typing/clicks shake the chassis (Taps.swift)
         switch type {
         case .keyDown:
             let key = event.getIntegerValueField(.keyboardEventKeycode)
@@ -193,6 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                                dy: CGFloat(event.getDoubleValueField(.mouseEventDeltaY)))
         }
         tap.start()
+        TapSensor.shared.sync()   // chassis taps, if enabled (Taps.swift)
         MousePointer.apply()   // push acceleration/sensitivity to the HID services (re-applied on hot-plug)
 
         _ = switcher   // create the (hidden) panel now, ready to reveal on first trigger
@@ -489,6 +493,7 @@ func runSelfTestIfRequested() {
     MouseScroll.selfTest()
     MousePointer.selfTest()
     MouseButtons.selfTest()
+    TapSensor.selfTest()
 
     print("selftest ok"); exit(0)
 }

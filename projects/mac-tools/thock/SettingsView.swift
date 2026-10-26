@@ -19,7 +19,7 @@ enum Theme {
 }
 
 enum SettingsSection: String, CaseIterable, Identifiable {
-    case general, keybinds, scrolling, mouse, permissions, about
+    case general, keybinds, scrolling, mouse, taps, permissions, about
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -27,6 +27,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .keybinds: return "Keybinds"
         case .scrolling: return "Scrolling"
         case .mouse: return "Mouse"
+        case .taps: return "Taps"
         case .permissions: return "Permissions"
         case .about: return "About"
         }
@@ -37,6 +38,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .keybinds: return "command"
         case .scrolling: return "arrow.up.and.down"
         case .mouse: return "computermouse.fill"
+        case .taps: return "hand.tap.fill"
         case .permissions: return "hand.raised.fill"
         case .about: return "info.circle.fill"
         }
@@ -47,6 +49,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .keybinds: return .indigo
         case .scrolling: return .teal
         case .mouse: return .pink
+        case .taps: return .purple
         case .permissions: return .orange
         case .about: return .blue
         }
@@ -108,6 +111,7 @@ struct SettingsView: View {
             sidebarRow(.keybinds)
             sidebarRow(.scrolling)
             sidebarRow(.mouse)
+            sidebarRow(.taps)
             sidebarHeader("Setup")
             sidebarRow(.permissions)
             sidebarHeader("Thock")
@@ -161,6 +165,7 @@ struct SettingsView: View {
             case .keybinds:    keybinds
             case .scrolling:   ScrollingPane()                                     // MouseScroll.swift
             case .mouse:       VStack(alignment: .leading, spacing: 22) { PointerPane(); ButtonsPane() }   // MousePointer / MouseButtons.swift
+            case .taps:        TapsPane()                                          // Taps.swift
             case .permissions: permissions
             case .about:       about
             }
@@ -320,12 +325,12 @@ func switchToggle(_ on: Bool) -> some View {
 /// Slider plus an editable number: drag, or click the number and type one (Return or clicking
 /// away commits). Typed values are snapped to `step` and clamped to `range` on the way in, so
 /// the slider and the stored pref never disagree. `digits` = decimals shown/parsed.
-func sliderRow(_ value: Binding<Double>, in range: ClosedRange<Double>, step: Double, unit: String, digits: Int = 0) -> some View {
+func sliderRow(_ value: Binding<Double>, in range: ClosedRange<Double>, step: Double, unit: String, digits: Int = 0, width: CGFloat = 150) -> some View {
     let snapped = Binding<Double>(
         get: { value.wrappedValue },
         set: { value.wrappedValue = min(max(($0 / step).rounded() * step, range.lowerBound), range.upperBound) })
     return HStack(spacing: 8) {
-        Slider(value: snapped, in: range, step: step).frame(width: 150).tint(Theme.accent)
+        Slider(value: snapped, in: range, step: step).frame(width: width).tint(Theme.accent)
         TextField("", value: snapped, format: .number.precision(.fractionLength(digits)))
             .textFieldStyle(.plain).multilineTextAlignment(.trailing)
             .font(.system(size: 12).monospacedDigit()).foregroundStyle(Theme.label)
