@@ -1,0 +1,86 @@
+# Thock (projects/mac-tools): every push to main that touches it builds, Developer ID signs,
+# notarizes and publishes a DMG as a GitHub Release. The app's Updater.swift polls
+# releases/latest. Free tier: public repo, so macOS minutes are free.
+#
+# Repo secrets (Settings → Secrets and variables → Actions):
+#   MACOS_CERT_P12       base64 of the "Developer ID Application" cert + key exported as .p12
+#   MACOS_CERT_PASSWORD  the .p12 export password
+#   APPLE_ID             Apple ID email of the developer account
+#   APPLE_APP_PASSWORD   app-specific password (account.apple.com → Sign-In and Security)
+name: thock-mac
+
+on:
+  push:
+    branches: [main]
+    paths: ['projects/mac-tools/**', '.github/workflows/thock-mac.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # gh release create
+
+concurrency: thock-mac
+
+jobs:
+  release:
+    runs-on: xcode-27   # macOS 27 + Xcode 27 (deployment target is 27.0)
+    defaults:
+      run:
+        working-directory: projects/mac-tools
+    env:
+      BUILD: ${{ github.run_number }}
+      VERSION: 1.0.${{ github.run_number }}
+      TEAM_ID: LJNQV2DKTV
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Self-test
+        run: swiftc -O thock/*.swift -o "$RUNNER_TEMP/thock-bin" && "$RUNNER_TEMP/thock-bin" selftest
+
+      - name: Import signing certificate
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/signing.keychain-db"
+          security create-keychain -p "" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "" "$KC"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$KC" > /dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+
+      - name: Build + sign
+        run: |
+          xcodebuild -project thock.xcodeproj -target thock -configuration Release \
+            SYMROOT="$PWD/build" \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Developer ID Application" \
+            DEVELOPMENT_TEAM="$TEAM_ID" PROVISIONING_PROFILE_SPECIFIER="" \
+            OTHER_CODE_SIGN_FLAGS=--timestamp \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" \
+            -quiet build
+          codesign --verify --deep --strict build/Release/thock.app
+
+      - name: DMG + notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          mkdir dmg && cp -R build/Release/thock.app dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname Thock -srcfolder dmg -ov -format UDZO thock.dmg
+          codesign --sign "Developer ID Application" --timestamp thock.dmg
+          # Notarizing the DMG covers the app inside it; the stapled ticket makes first launch work offline.
+          xcrun notarytool submit thock.dmg --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$TEAM_ID" --wait
+          xcrun stapler staple thock.dmg
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "thock-v$VERSION" thock.dmg \
+            --title "Thock $VERSION" --notes "Built from ${GITHUB_SHA::7}." --target "$GITHUB_SHA"
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true

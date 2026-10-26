@@ -67,26 +67,23 @@ Tab hotkey are the parts that need the grants above.
 
 Self-check: `./thock.app/Contents/MacOS/thock selftest` → `selftest ok`.
 
-## Sharing the app
+## Releases + auto-update
 
-Build a standalone, shareable `thock.app` (Release, ad-hoc signed — no Apple account
-or notarization):
+Every push to `main` touching `projects/mac-tools/` runs `.github/workflows/thock-mac.yml`:
+self-test → Developer ID sign → notarize → `thock.dmg` on a GitHub Release (`thock-v1.0.<run>`).
+Installed copies check Releases daily (or menu **Check for Updates…**), verify the new app is
+signed by our team, swap it in place and relaunch. Grants survive updates (same Developer ID).
+Dev builds from Xcode / `swiftc` never self-update.
 
-```
-./build.sh
-```
+One-time setup — repo **Settings → Secrets and variables → Actions**:
+- `MACOS_CERT_P12` — Keychain Access → export your *Developer ID Application* cert + key as
+  .p12, then `base64 -i cert.p12 | pbcopy`.
+- `MACOS_CERT_PASSWORD` — that export's password.
+- `APPLE_ID` / `APPLE_APP_PASSWORD` — your Apple ID + an app-specific password
+  (account.apple.com → Sign-In and Security) for notarization.
 
-Needs full Xcode (`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`
-first if `xcodebuild` complains). It produces `dist/thock.app` and `dist/thock.zip` —
-send the zip.
-
-**For the recipient** (it's not notarized, so Gatekeeper will object once):
-1. Unzip and move `thock.app` to `/Applications`.
-2. Launch it; macOS will block it. Open **System Settings → Privacy & Security**,
-   scroll down, and click **Open Anyway** (or run
-   `xattr -dr com.apple.quarantine /Applications/thock.app` in Terminal, then open it).
-3. Grant **Accessibility** (and optionally **Screen Recording**) when asked — both
-   are reachable any time from the menu-bar **Settings → Permissions**.
+`./build.sh` still makes a local ad-hoc `dist/thock.zip` for quick sharing (recipient must
+*Open Anyway* in Privacy & Security, since it isn't notarized).
 
 ## Layout
 
@@ -102,4 +99,4 @@ App Sandbox is **off** on purpose — a cross-app switcher can't run sandboxed.
 
 ## Deferred
 
-App exclusions, launch-at-login, signing/notarization (you said local-dev).
+App exclusions, launch-at-login.

@@ -20,6 +20,7 @@ struct ThockApp: App {
         MenuBarExtra("Thock", image: "MenuBarIcon") {
             Button("Settings…") { delegate.openSettings() }.keyboardShortcut(",", modifiers: .command)
             Toggle("Keep Awake", isOn: Binding(get: { awake.isOn }, set: { awake.set($0) }))
+            Button("Check for Updates…") { Task { await Updater.check(manual: true) } }
             Divider()
             Button("Quit Thock") { NSApp.terminate(nil) }.keyboardShortcut("q")
         }
@@ -218,6 +219,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
         manager.startTracking()
+        Updater.start()   // daily GitHub Releases check; no-op on dev builds
     }
 
     func applicationWillTerminate(_ note: Notification) { MousePointer.restore() }
@@ -494,6 +496,7 @@ func runSelfTestIfRequested() {
     MousePointer.selfTest()
     MouseButtons.selfTest()
     TapSensor.selfTest()
+    Updater.selfTest()
 
     print("selftest ok"); exit(0)
 }
