@@ -68,7 +68,8 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
           mkdir dmg && cp -R build/Release/thock.app dmg/ && ln -s /Applications dmg/Applications
-          hdiutil create -volname Thock -srcfolder dmg -ov -format UDZO thock.dmg
+          # hdiutil create is deprecated and fails on the xcode-27 runner ("No such file or directory").
+          diskutil image create from --format UDZO --volumeName Thock dmg "$PWD/thock.dmg"
           codesign --sign "Developer ID Application" --timestamp thock.dmg
           # Notarizing the DMG covers the app inside it; the stapled ticket makes first launch work offline.
           xcrun notarytool submit thock.dmg --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$TEAM_ID" --wait
