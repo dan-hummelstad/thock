@@ -72,7 +72,14 @@ jobs:
           diskutil image create from --format UDZO --volumeName Thock dmg "$PWD/thock.dmg"
           codesign --sign "Developer ID Application" --timestamp thock.dmg
           # Notarizing the DMG covers the app inside it; the stapled ticket makes first launch work offline.
-          xcrun notarytool submit thock.dmg --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$TEAM_ID" --wait
+          AUTH=(--apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$TEAM_ID")
+          OUT=$(xcrun notarytool submit thock.dmg "${AUTH[@]}" --wait --output-format json) || true
+          echo "$OUT"
+          if [ "$(jq -r .status <<<"$OUT")" != Accepted ]; then
+            # Apple's per-file rejection reasons; --wait alone only says "Invalid".
+            xcrun notarytool log "$(jq -r .id <<<"$OUT")" "${AUTH[@]}"
+            exit 1
+          fi
           xcrun stapler staple thock.dmg
 
       - name: Release
