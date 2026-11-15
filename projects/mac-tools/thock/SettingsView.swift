@@ -19,7 +19,7 @@ enum Theme {
 }
 
 enum SettingsSection: String, CaseIterable, Identifiable {
-    case general, keybinds, scrolling, mouse, taps, permissions, about
+    case general, keybinds, scrolling, mouse, taps, spaces, permissions, about
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -28,6 +28,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .scrolling: return "Scrolling"
         case .mouse: return "Mouse"
         case .taps: return "Taps"
+        case .spaces: return "Spaces"
         case .permissions: return "Permissions"
         case .about: return "About"
         }
@@ -39,6 +40,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .scrolling: return "arrow.up.and.down"
         case .mouse: return "computermouse.fill"
         case .taps: return "hand.tap.fill"
+        case .spaces: return "rectangle.split.3x1.fill"
         case .permissions: return "hand.raised.fill"
         case .about: return "info.circle.fill"
         }
@@ -50,6 +52,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .scrolling: return .teal
         case .mouse: return .pink
         case .taps: return .purple
+        case .spaces: return .green
         case .permissions: return .orange
         case .about: return .blue
         }
@@ -112,6 +115,7 @@ struct SettingsView: View {
             sidebarRow(.scrolling)
             sidebarRow(.mouse)
             sidebarRow(.taps)
+            sidebarRow(.spaces)
             sidebarHeader("Setup")
             sidebarRow(.permissions)
             sidebarHeader("Thock")
@@ -166,6 +170,7 @@ struct SettingsView: View {
             case .scrolling:   ScrollingPane()                                     // MouseScroll.swift
             case .mouse:       VStack(alignment: .leading, spacing: 22) { PointerPane(); ButtonsPane() }   // MousePointer / MouseButtons.swift
             case .taps:        TapsPane()                                          // Taps.swift
+            case .spaces:      SpacesPane()                                        // Spaces.swift
             case .permissions: permissions
             case .about:       about
             }

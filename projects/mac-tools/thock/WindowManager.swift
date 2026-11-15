@@ -15,7 +15,7 @@ func _AXUIElementGetWindow(_ element: AXUIElement, _ identifier: UnsafeMutablePo
 // here is clean and needs no Screen Recording (only titles do).
 // ponytail: private symbols; if any fail to resolve we return [] and fall back to
 // current-Space AX windows. If Apple renames them, that's the break point.
-private enum SkyLight {
+enum SkyLight {   // internal: Spaces.swift reads the Space list through it too
     static let handle = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY)
     static func sym<T>(_ name: String, _ t: T.Type) -> T? {
         guard let h = handle, let p = dlsym(h, name) else { return nil }
