@@ -9,11 +9,11 @@ import SwiftUI
 // one fixed-point tick and its ended phase carries a huge fling velocity, so the Dock commits
 // the switch with nothing left to animate. On macOS 27 the Dock reads the swipe from the IOHID
 // event embedded in the CGEvent, not from the CGEvent fields, so that payload is appended to
-// the serialized event by hand (`augment`).
+// the serialized event by hand (`DockSwipe.event`).
 //
 // ponytail: undocumented CGEvent fields, IOHID struct layouts and the serialized-event tag, all
 // from upstream's traces of real swipes. Break point: Apple changing any of them. Then a switch
-// silently does nothing, or `augment` fails and logs. Thock deploys to macOS 27+, so upstream's
+// silently does nothing, or the event can't be built and that logs. Thock deploys to macOS 27+, so upstream's
 // pre-27 path (plain fields, velocity only) isn't ported.
 
 extension Prefs {
@@ -39,8 +39,7 @@ enum Spaces {
 
     /// The Dock switches the display under the pointer, so that's the one we read.
     static func current() -> Info? {
-        guard let cid = SkyLight.mainConnectionID?(),
-              let displays = SkyLight.copyManagedDisplaySpaces?(cid)?.takeRetainedValue() as? [[String: Any]] else { return nil }
+        guard let displays = SkyLight.managedDisplaySpaces() else { return nil }
         var id: CGDirectDisplayID = 0, n: UInt32 = 0
         CGGetDisplaysWithPoint(CGEvent(source: nil)?.location ?? .zero, 1, &id, &n)
         let uuid = n > 0 ? CGDisplayCreateUUIDFromDisplayID(id)?.takeRetainedValue() : nil
@@ -81,7 +80,7 @@ enum Spaces {
         let sign = swipeSign(right: p.right, natural: UserDefaults.standard.object(forKey: "com.apple.swipescrolldirection") as? Bool ?? true)
         for _ in 0..<p.steps {
             // All three phases: with only began + ended, Mission Control stops responding.
-            for phase in [began, changed, ended] { guard post(phase, sign) else { return false } }
+            for phase in [began, changed, ended] { guard post(DockSwipe(phase: phase, sign: sign)) else { return false } }
         }
         predicted[live.display] = from + (p.right ? p.steps : -p.steps)
         return true
@@ -94,69 +93,78 @@ enum Spaces {
     // MARK: the synthetic swipe
 
     private static let began: UInt8 = 1, changed: UInt8 = 2, ended: UInt8 = 4, cancelled: UInt8 = 8   // CGSGesturePhase
-    private static let gesture: Int64 = 29, dockControl: Int64 = 30                                   // CGSEventType
+    static let gesture: UInt32 = 29, dockControl: UInt32 = 30                                         // CGSEventType
     private static let dockSwipe: Int64 = 23                                                          // kIOHIDEventTypeDockSwipe
-    private static let progressTick = 0.000016   // one 16.16 tick: keeps the direction, leaves nothing to animate
-    private static let flingVelocity = 9999.0    // what commits the switch; the 16.16 field tops out near 32767
+    private static let horizontal: Int64 = 1                                                          // CGGestureMotion
 
     private static func field(_ n: UInt32) -> CGEventField { CGEventField(rawValue: n)! }
     private static let fType = field(55), fHIDType = field(110), fMotion = field(123), fProgress = field(124)
     private static let fPositionX = field(125), fVelocityX = field(129), fVelocityY = field(130)
-    private static let fPhase = field(132), fPhaseAlias = field(134), fZoomDeltaY = field(138), fTimeAlias = field(169)
+    private static let fPhase = field(132), fPhaseAlias = field(134), fZoomDeltaY = field(138)
+    private static let fTimeAlias = field(169)   // upstream's kCGEventSourceUnixProcessIDAlias; a real swipe carries a timestamp there
 
-    /// Pure: the IOHID queue element the Dock parses. A header, a fluid-touch (dock swipe) event
-    /// and, with the fling, its child velocity event. Packed, little-endian, 16.16 fixed point.
-    static func hidPayload(phase: UInt8, progress: Double, velocity: Double, timestamp: UInt64) -> Data {
-        func fixed(_ v: Double) -> Int32 { let f = Int32(v * 65536); return f == 0 && v != 0 ? (v > 0 ? 1 : -1) : f }
-        var d = Data()
-        func put<T: FixedWidthInteger>(_ v: T) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
-        let fling = velocity != 0 || phase == ended
-        put(timestamp); put(UInt64(0)); put(UInt32(0)); put(UInt32(0)); put(UInt32(fling ? 2 : 1))   // queue header: time, sender, options, attribute length, event count
-        put(UInt32(40)); put(UInt32(23)); put(UInt32(phase) << 24); put(UInt32(0))                  // fluid touch: size, type, options (phase in the top byte), depth 0
-        put(fixed(0.1)); put(Int32(0)); put(Int32(0)); put(UInt32(0))                               // position x/y/z, swipe mask
-        put(UInt16(1)); put(UInt16(3)); put(fixed(progress))                                        // motion horizontal, flavor "dock primary", progress
-        if fling {
-            put(UInt32(28)); put(UInt32(9)); put(UInt32(0)); put(UInt32(1))                         // velocity: size, type, options, depth 1 (child)
-            put(fixed(velocity)); put(Int32(0)); put(Int32(0))                                      // velocity x/y/z
+    /// One phase of the synthetic swipe: the single source for both of its encodings, the CGEvent
+    /// fields and the IOHID payload that the macOS 27 Dock actually reads.
+    struct DockSwipe {
+        var phase: UInt8, sign: Double
+        var progress: Double { sign * 0.000016 }                    // one 16.16 tick: keeps the direction, leaves nothing to animate
+        var velocity: Double { phase == ended ? sign * 9999 : 0 }   // the fling that commits the switch; the 16.16 field tops out near 32767
+        private static let positionX = 0.1
+
+        /// Pure: the IOHID queue element the Dock parses. A header, a fluid-touch (dock swipe)
+        /// event and, on the ended phase, its child velocity event. Packed, little-endian, 16.16
+        /// fixed point.
+        func payload(timestamp: UInt64) -> Data {
+            func fixed(_ v: Double) -> Int32 { let f = Int32(v * 65536); return f == 0 && v != 0 ? (v > 0 ? 1 : -1) : f }
+            var d = Data()
+            func put<T: FixedWidthInteger>(_ v: T) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
+            let fling = phase == ended
+            put(timestamp); put(UInt64(0)); put(UInt32(0)); put(UInt32(0)); put(UInt32(fling ? 2 : 1))   // queue header: time, sender, options, attribute length, event count
+            put(UInt32(40)); put(UInt32(dockSwipe)); put(UInt32(phase) << 24); put(UInt32(0))           // fluid touch: size, type, options (phase in the top byte), depth 0
+            put(fixed(Self.positionX)); put(Int32(0)); put(Int32(0)); put(UInt32(0))                    // position x/y/z, swipe mask
+            put(UInt16(horizontal)); put(UInt16(3)); put(fixed(progress))                               // motion, flavor "dock primary", progress
+            if fling {
+                put(UInt32(28)); put(UInt32(9)); put(UInt32(0)); put(UInt32(1))                         // velocity: size, type, options, depth 1 (child)
+                put(fixed(velocity)); put(Int32(0)); put(Int32(0))                                      // velocity x/y/z
+            }
+            return d
         }
-        return d
+
+        /// The dock-control event, with `payload` appended to its serialized form as field 4205.
+        func event() -> CGEvent? {
+            guard let e = CGEvent(source: nil) else { return nil }
+            e.setIntegerValueField(fType, value: Int64(dockControl))
+            e.setIntegerValueField(fHIDType, value: dockSwipe)
+            e.setIntegerValueField(fPhase, value: Int64(phase))
+            e.setIntegerValueField(fMotion, value: horizontal)
+            e.setDoubleValueField(fProgress, value: progress)
+            // The rest are fields a real trackpad swipe carries (upstream, from FasterSwiper's traces).
+            e.setIntegerValueField(fPhaseAlias, value: Int64(phase))
+            e.setDoubleValueField(fZoomDeltaY, value: 3)
+            e.setDoubleValueField(fTimeAlias, value: Double(mach_absolute_time()))
+            e.setDoubleValueField(fPositionX, value: Self.positionX)
+            if phase == ended { e.setDoubleValueField(fVelocityX, value: velocity) }
+
+            guard let cf = e.data else { return nil }
+            var d = cf as Data
+            guard d.starts(with: [0, 0, 0, 2]) else { return nil }   // serialization format 2
+            let p = payload(timestamp: e.timestamp != 0 ? e.timestamp : mach_absolute_time())
+            d.append(contentsOf: [UInt8(p.count >> 8), UInt8(p.count & 0xFF), UInt8(4205 >> 8), UInt8(4205 & 0xFF)])   // big-endian tag: length, field id
+            d.append(p)
+            return CGEvent(withDataAllocator: nil, data: d as CFData)
+        }
     }
 
-    /// Append `payload` to the serialized event as field 4205 and rebuild the event from that.
-    private static func augment(_ event: CGEvent, _ payload: Data) -> CGEvent? {
-        guard let cf = event.data else { return nil }
-        var d = cf as Data
-        guard d.starts(with: [0, 0, 0, 2]) else { return nil }   // serialization format 2
-        d.append(contentsOf: [UInt8(payload.count >> 8), UInt8(payload.count & 0xFF), UInt8(4205 >> 8), UInt8(4205 & 0xFF)])   // big-endian tag: length, field id
-        d.append(payload)
-        return CGEvent(withDataAllocator: nil, data: d as CFData)
-    }
+    private static var loggedBuild = false
 
-    private static var loggedAugment = false
-
-    private static func post(_ phase: UInt8, _ sign: Double) -> Bool {
-        let progress = sign * progressTick, velocity = phase == ended ? sign * flingVelocity : 0
-        guard let e = CGEvent(source: nil), let companion = CGEvent(source: nil) else { return false }
-        e.setIntegerValueField(fType, value: dockControl)
-        e.setIntegerValueField(fHIDType, value: dockSwipe)
-        e.setIntegerValueField(fPhase, value: Int64(phase))
-        e.setIntegerValueField(fMotion, value: 1)   // horizontal
-        e.setDoubleValueField(fProgress, value: progress)
-        // The rest are fields a real trackpad swipe carries (upstream, from FasterSwiper's traces).
-        e.setIntegerValueField(fPhaseAlias, value: Int64(phase))
-        e.setDoubleValueField(fZoomDeltaY, value: 3)
-        e.setDoubleValueField(fTimeAlias, value: Double(mach_absolute_time()))
-        e.setDoubleValueField(fPositionX, value: 0.1)
-        if phase == ended { e.setDoubleValueField(fVelocityX, value: velocity) }
-
-        let time = e.timestamp != 0 ? e.timestamp : mach_absolute_time()
-        guard let swipe = augment(e, hidPayload(phase: phase, progress: progress, velocity: velocity, timestamp: time)) else {
-            if !loggedAugment { loggedAugment = true; NSLog("Thock spaces: couldn't build the swipe event (serialized CGEvent format changed?)") }
+    private static func post(_ swipe: DockSwipe) -> Bool {
+        guard let event = swipe.event(), let companion = CGEvent(source: nil) else {
+            if !loggedBuild { loggedBuild = true; NSLog("Thock spaces: couldn't build the swipe event (serialized CGEvent format changed?)") }
             return false
         }
-        companion.setIntegerValueField(fType, value: gesture)   // the Dock ignores a dock swipe without a companion gesture event
-        if AppDelegate.shared?.tap.isActive == true { ownEvents += 2 }
-        swipe.post(tap: .cgSessionEventTap)
+        companion.setIntegerValueField(fType, value: Int64(gesture))   // the Dock ignores a dock swipe without a companion gesture event
+        ownEvents += 2
+        event.post(tap: .cgSessionEventTap)
         companion.post(tap: .cgSessionEventTap)
         return true
     }
@@ -166,50 +174,53 @@ enum Spaces {
     // Our own swipes re-enter the tap looking like the trackpad's (source pid 0), so they are
     // counted through instead of recognised.
     private static var ownEvents = 0
-    private static var tracking = false, fired = false
+    private enum Tracking { case idle, armed, fired }   // armed: swallowing a real swipe, not switched yet
+    private static var tracking = Tracking.idle
 
-    /// Owns the gesture (29) / dock-control (30) branch of the session tap (ThockApp.swift ›
-    /// KeyTap.handle). With instant swipes on, a real horizontal dock swipe is swallowed and
-    /// replaced by one instant switch. nil swallows the event.
+    /// The private event types the session tap subscribes to on our behalf and routes to `handle`.
+    static func owns(_ type: CGEventType) -> Bool { type.rawValue == gesture || type.rawValue == dockControl }
+
+    /// With instant swipes on, a real horizontal dock swipe is swallowed and replaced by one
+    /// instant switch. nil swallows the event.
     static func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
         let pass = Unmanaged.passUnretained(event)
         if ownEvents > 0, !inFlight { ownEvents = 0 }   // ours come back within ms; a stale count would let real swipes slip past
         if ownEvents > 0 { ownEvents -= 1; return pass }
-        guard Prefs.spaceSwipes else { tracking = false; return pass }
+        guard Prefs.spaceSwipes else { tracking = .idle; return pass }
         // Someone's synthetic gesture (MouseButtons' navigation swipe), not the trackpad.
         if event.getIntegerValueField(.eventSourceUnixProcessID) != 0 { return pass }
-        guard Int64(type.rawValue) == dockControl else { return tracking ? nil : pass }   // companion gesture events of a swipe we're replacing
-        guard event.getIntegerValueField(fHIDType) == dockSwipe, event.getIntegerValueField(fMotion) == 1 else { return pass }   // vertical = Mission Control / Exposé
+        guard type.rawValue == dockControl else { return tracking == .idle ? pass : nil }   // companion gesture events of a swipe we're replacing
+        guard event.getIntegerValueField(fHIDType) == dockSwipe, event.getIntegerValueField(fMotion) == horizontal else { return pass }   // vertical = Mission Control / Exposé
 
-        switch UInt8(truncatingIfNeeded: event.getIntegerValueField(fPhase)) {
-        case began:
+        let phase = UInt8(truncatingIfNeeded: event.getIntegerValueField(fPhase))
+        if phase == began {
             if exposeActive() { return pass }
-            tracking = true; fired = false
+            tracking = .armed
             return nil
+        }
+        guard tracking != .idle else { return pass }   // a swipe we didn't claim stays the Dock's, to its end
+        switch phase {
         case changed:
-            guard tracking else { return pass }
             fire(event.getDoubleValueField(fProgress))
-            return nil
         case ended:
-            guard tracking else { return pass }
             fire(event.getDoubleValueField(fVelocityX))   // a flick too short for a changed phase still has velocity
-            tracking = false
+            tracking = .idle
             // The Dock needs the real ended event to close its gesture state. Zero the motion so
             // it doesn't switch a second time.
             for f in [fProgress, fVelocityX, fVelocityY] { event.setDoubleValueField(f, value: 0) }
             return pass
         case cancelled:
-            tracking = false
-            return nil
+            tracking = .idle
         default:
-            return tracking ? nil : pass
+            break
         }
+        return nil
     }
 
     /// One switch per swipe, in the direction of its first non-zero progress/velocity.
     private static func fire(_ value: Double) {
-        guard !fired, value != 0 else { return }
-        fired = true
+        guard tracking == .armed, value != 0 else { return }
+        tracking = .fired
         step(right: value > 0)
     }
 
@@ -261,11 +272,11 @@ enum Spaces {
 
         func u32(_ d: Data, _ o: Int) -> UInt32 { d.subdata(in: o..<o + 4).withUnsafeBytes { $0.loadUnaligned(as: UInt32.self) } }
         func i32(_ d: Data, _ o: Int) -> Int32 { Int32(bitPattern: u32(d, o)) }
-        let b = hidPayload(phase: began, progress: progressTick, velocity: 0, timestamp: 7)
+        let b = DockSwipe(phase: began, sign: 1).payload(timestamp: 7)
         assert(b.count == 68 && b[0] == 7 && u32(b, 24) == 1, "began: header + fluid event only")
         assert(u32(b, 28) == 40 && u32(b, 32) == 23 && u32(b, 36) == 1 << 24, "fluid event: size, type, phase in the options top byte")
         assert(i32(b, 44) == 6553 && b[60] == 1 && b[62] == 3 && i32(b, 64) == 1, "position 0.1, horizontal, dock flavor, progress = one tick")
-        let e = hidPayload(phase: ended, progress: -progressTick, velocity: -flingVelocity, timestamp: 7)
+        let e = DockSwipe(phase: ended, sign: -1).payload(timestamp: 7)
         assert(e.count == 96 && u32(e, 24) == 2 && i32(e, 64) == -1, "ended: velocity event appended, negative progress = one tick left")
         assert(u32(e, 68) == 28 && u32(e, 72) == 9 && u32(e, 80) == 1 && i32(e, 84) == -655_294_464, "velocity child: size, type, depth 1, −9999 in 16.16")
 

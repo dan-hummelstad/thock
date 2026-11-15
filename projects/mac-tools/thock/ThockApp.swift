@@ -42,7 +42,7 @@ final class KeyTap {
                  | (1 << CGEventType.otherMouseDown.rawValue) | (1 << CGEventType.otherMouseUp.rawValue)
                  | (1 << CGEventType.leftMouseDown.rawValue) | (1 << CGEventType.leftMouseUp.rawValue)     // tap veto only
                  | (1 << CGEventType.rightMouseDown.rawValue) | (1 << CGEventType.rightMouseUp.rawValue)
-                 | (1 << 29) | (1 << 30)   // gesture + dock-control: trackpad Space swipes (Spaces.swift)
+                 | (1 << Spaces.gesture) | (1 << Spaces.dockControl)   // trackpad Space swipes (Spaces.swift)
         let cb: CGEventTapCallBack = { _, type, event, refcon in
             Unmanaged<KeyTap>.fromOpaque(refcon!).takeUnretainedValue().handle(type, event)
         }
@@ -60,7 +60,7 @@ final class KeyTap {
     private func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
         // Trackpad gestures → instant Space swipes (Spaces.swift); nil swallows. Before the stamp
         // below: a finger resting on the trackpad isn't input that should veto chassis taps.
-        if type.rawValue == 29 || type.rawValue == 30 { return Spaces.handle(type, event) }
+        if Spaces.owns(type) { return Spaces.handle(type, event) }
         if type != .mouseMoved && type != .flagsChanged { TapSensor.lastInput = CACurrentMediaTime() }   // typing/clicks shake the chassis (Taps.swift)
         switch type {
         case .keyDown:
