@@ -15,34 +15,38 @@ func _AXUIElementGetWindow(_ element: AXUIElement, _ identifier: UnsafeMutablePo
 // here is clean and needs no Screen Recording (only titles do).
 // ponytail: private symbols; if any fail to resolve we return [] and fall back to
 // current-Space AX windows. If Apple renames them, that's the break point.
-private enum SkyLight {
-    static let handle = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY)
-    static func sym<T>(_ name: String, _ t: T.Type) -> T? {
+enum SkyLight {
+    private static let handle = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY)
+    private static func sym<T>(_ name: String, _ t: T.Type) -> T? {
         guard let h = handle, let p = dlsym(h, name) else { return nil }
         return unsafeBitCast(p, to: T.self)
     }
-    typealias ConnFn = @convention(c) () -> Int32
-    typealias SpacesFn = @convention(c) (Int32) -> Unmanaged<CFArray>?
-    typealias WinsFn = @convention(c) (Int32, UInt32, CFArray, UInt32,
+    private typealias ConnFn = @convention(c) () -> Int32
+    private typealias SpacesFn = @convention(c) (Int32) -> Unmanaged<CFArray>?
+    private typealias WinsFn = @convention(c) (Int32, UInt32, CFArray, UInt32,
         UnsafeMutablePointer<UInt64>, UnsafeMutablePointer<UInt64>) -> Unmanaged<CFArray>?
-    static let mainConnectionID = sym("SLSMainConnectionID", ConnFn.self)
-    static let copyManagedDisplaySpaces = sym("SLSCopyManagedDisplaySpaces", SpacesFn.self)
-    static let copyWindowsWithOptionsAndTags = sym("SLSCopyWindowsWithOptionsAndTags", WinsFn.self)
+    private static let mainConnectionID = sym("SLSMainConnectionID", ConnFn.self)
+    private static let copyManagedDisplaySpaces = sym("SLSCopyManagedDisplaySpaces", SpacesFn.self)
+    private static let copyWindowsWithOptionsAndTags = sym("SLSCopyWindowsWithOptionsAndTags", WinsFn.self)
+
+    /// One dict per display: "Display Identifier", "Spaces" (each with an "id64"), "Current Space".
+    /// Also read by Spaces.swift, to bound its switches.
+    static func managedDisplaySpaces() -> [[String: Any]]? {
+        guard let mainConnectionID, let copyManagedDisplaySpaces else { return nil }
+        return copyManagedDisplaySpaces(mainConnectionID())?.takeRetainedValue() as? [[String: Any]]
+    }
 
     /// CGWindowIDs of every standard window across all Spaces. Option 0x2 = the real,
     /// ordered-in windows; it omits the framework placeholders that pollute optionAll.
     static func allSpaceWindowIds() -> [CGWindowID] {
-        guard let mainConnectionID, let copyManagedDisplaySpaces, let copyWindowsWithOptionsAndTags
-        else { return [] }
-        let cid = mainConnectionID()
-        guard let displays = copyManagedDisplaySpaces(cid)?.takeRetainedValue() as? [[String: Any]]
+        guard let mainConnectionID, let copyWindowsWithOptionsAndTags, let displays = managedDisplaySpaces()
         else { return [] }
         let spaceIds = displays.flatMap {
             ($0["Spaces"] as? [[String: Any]] ?? []).compactMap { $0["id64"] as? UInt64 }
         }
         guard !spaceIds.isEmpty else { return [] }
         var setTags: UInt64 = 0, clearTags: UInt64 = 0
-        guard let cf = copyWindowsWithOptionsAndTags(cid, 0, spaceIds as CFArray, 0x2, &setTags, &clearTags)?
+        guard let cf = copyWindowsWithOptionsAndTags(mainConnectionID(), 0, spaceIds as CFArray, 0x2, &setTags, &clearTags)?
             .takeRetainedValue() else { return [] }
         return (cf as? [UInt32]) ?? (cf as? [NSNumber])?.map { $0.uint32Value } ?? []
     }

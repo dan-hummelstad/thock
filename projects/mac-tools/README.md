@@ -30,6 +30,11 @@ Quit — as a side layer. Tab/arrows highlight, Return runs it. Performed direct
 nothing touching the Dock, so nothing flashes. (App-supplied Dock items like *Recent
 Documents* aren't shown — reading those would require visibly popping the real Dock menu.)
 
+**Instant Spaces.** Settings → Spaces switches Spaces with no slide animation (no SIP
+changes): ⌃⌥⌘ ←/→ steps, ⌃⌥⌘ 1–0 jumps to Space 1–10, and *Instant swipes* makes the
+trackpad swipe between Spaces instant too. Both are off by default. The technique is a
+port of [InstantSpaceSwitcher](https://github.com/jurplel/InstantSpaceSwitcher) (MIT).
+
 ## Build / run
 
 Open `thock.xcodeproj` in Xcode and run. Menu-bar agent (🟦 in the menu bar), no
@@ -91,6 +96,7 @@ One-time setup — repo **Settings → Secrets and variables → Actions**:
 - `Thumbnailer.swift` — ScreenCaptureKit snapshots.
 - `Switcher.swift` — floating panel + SwiftUI list (edge + hotkey share it).
 - `ThockApp.swift` — entry, key event tap, acceleration-aware edge reveal, MRU.
+- `Spaces.swift` — instant Space switching (synthetic Dock swipe), its hotkeys, swipe override and settings pane.
 - `Prefs.swift` — settings storage (UserDefaults).
 - `SettingsView.swift` — dark sidebar settings UI (hosted in a custom window from `ThockApp`).
 - `Assets.xcassets` — placeholder app icon.

@@ -42,6 +42,7 @@ final class KeyTap {
                  | (1 << CGEventType.otherMouseDown.rawValue) | (1 << CGEventType.otherMouseUp.rawValue)
                  | (1 << CGEventType.leftMouseDown.rawValue) | (1 << CGEventType.leftMouseUp.rawValue)     // tap veto only
                  | (1 << CGEventType.rightMouseDown.rawValue) | (1 << CGEventType.rightMouseUp.rawValue)
+                 | (1 << Spaces.gesture) | (1 << Spaces.dockControl)
         let cb: CGEventTapCallBack = { _, type, event, refcon in
             Unmanaged<KeyTap>.fromOpaque(refcon!).takeUnretainedValue().handle(type, event)
         }
@@ -57,6 +58,9 @@ final class KeyTap {
     }
 
     private func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
+        // Before the stamp below: a finger resting on the trackpad isn't input that should veto
+        // chassis taps.
+        if Spaces.owns(type) { return Spaces.handle(type, event) }
         if type != .mouseMoved && type != .flagsChanged { TapSensor.lastInput = CACurrentMediaTime() }   // typing/clicks shake the chassis (Taps.swift)
         switch type {
         case .keyDown:
@@ -243,6 +247,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             // Dock-actions layer; actions only fire on Return).
             if switcher.isExpanded, switcher.openedByHotkey, !flags.contains(mod) { switcher.releaseModifier() }
             return false
+        }
+        // Instant Space switching (Spaces.swift): ⌃⌥⌘ ←/→ steps, ⌃⌥⌘ 1–0 jumps to Space 1–10.
+        if Prefs.spaceKeys, Spaces.isChord(flags) {
+            if key == kLeft || key == kRight { Spaces.step(right: key == kRight); return true }
+            if let n = kDigitGroup[key] { Spaces.go(to: n - 1); return true }
         }
         let reverse = flags.contains(.maskShift)
         // Configurable "open browser tabs" key when it isn't Return (Return is owned by the
@@ -496,6 +505,7 @@ func runSelfTestIfRequested() {
     MousePointer.selfTest()
     MouseButtons.selfTest()
     TapSensor.selfTest()
+    Spaces.selfTest()
     Updater.selfTest()
 
     print("selftest ok"); exit(0)
